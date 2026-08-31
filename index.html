@@ -83,8 +83,13 @@
 
       <label>
         網址（必填）
-        <input type="url" name="url" placeholder="貼上網址，例如 https://..." required>
-        <span class="field-hint">貼上後將自動嘗試抓取標題，抓取失敗則略過</span>
+        <input type="url" name="url" id="urlInput" placeholder="貼上網址，例如 https://..." required>
+        <span class="field-hint" id="titleFetchHint">貼上後將自動嘗試抓取標題</span>
+      </label>
+
+      <label>
+        標題（自動抓取，若抓不到可自行輸入）
+        <input type="text" name="title" id="titleInput" placeholder="尚未抓取到標題，可以手動輸入">
       </label>
 
       <label>

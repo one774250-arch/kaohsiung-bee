@@ -34,6 +34,14 @@ def 查詢連結API():
     return jsonify(取得所有連結(device_id))
 
 
+@app.route("/api/fetch-title", methods=["GET"])
+def 預覽標題API():
+    url = (request.args.get("url") or "").strip()
+    if not 網址格式正確(url):
+        return jsonify({"title": None})
+    return jsonify({"title": 抓取標題(url)})
+
+
 @app.route("/api/links", methods=["POST"])
 def 新增連結API():
     data = request.get_json(force=True, silent=True) or {}
@@ -42,6 +50,7 @@ def 新增連結API():
     platform = data.get("platform")
     url = (data.get("url") or "").strip()
     creator_name = (data.get("creator_name") or "").strip() or None
+    手動標題 = (data.get("title") or "").strip() or None
 
     if category not in ALLOWED_CATEGORY:
         return jsonify({"error": "分類不正確，請選擇「檢舉」或「按讚分享」"}), 400
@@ -50,7 +59,9 @@ def 新增連結API():
     if not 網址格式正確(url):
         return jsonify({"error": "網址格式不正確，請輸入完整的 http(s) 網址"}), 400
 
-    title = 抓取標題(url)  # 抓取失敗回傳 None，不中斷新增流程
+    # 前端若已經抓過標題（或使用者手動輸入），優先採用；
+    # 沒有的話後端再嘗試自動抓取一次作為保底
+    title = 手動標題 or 抓取標題(url)
 
     新連結 = 新增連結(category, platform, url, title, creator_name)
     新連結["created_at"] = 新連結["created_at"].isoformat()

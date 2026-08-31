@@ -36,6 +36,9 @@
   const addError = document.getElementById('addError');
   const btnCancelAdd = document.getElementById('btnCancelAdd');
   const btnSubmitAdd = document.getElementById('btnSubmitAdd');
+  const urlInput = document.getElementById('urlInput');
+  const titleInput = document.getElementById('titleInput');
+  const titleFetchHint = document.getElementById('titleFetchHint');
 
   const confirmBackdrop = document.getElementById('confirmBackdrop');
   const confirmText = document.getElementById('confirmText');
@@ -162,11 +165,37 @@
   btnAdd.addEventListener('click', () => {
     addForm.reset();
     addError.hidden = true;
+    titleFetchHint.textContent = '貼上後將自動嘗試抓取標題';
     addBackdrop.hidden = false;
   });
   btnCancelAdd.addEventListener('click', () => { addBackdrop.hidden = true; });
   addBackdrop.addEventListener('click', (e) => {
     if (e.target === addBackdrop) addBackdrop.hidden = true;
+  });
+
+  // 貼上網址、欄位失焦時，嘗試預覽抓取標題（抓不到就讓使用者自己填）
+  urlInput.addEventListener('blur', async () => {
+    const url = urlInput.value.trim();
+    if (!url) return;
+    try {
+      new URL(url); // 格式不對就不用打 API 了
+    } catch (_) {
+      return;
+    }
+
+    titleFetchHint.textContent = '正在嘗試抓取標題…';
+    try {
+      const res = await fetch(`${API_URL}/api/fetch-title?url=${encodeURIComponent(url)}`);
+      const data = await res.json();
+      if (data.title) {
+        titleInput.value = data.title;
+        titleFetchHint.textContent = '已自動帶入標題，可自行修改';
+      } else {
+        titleFetchHint.textContent = '抓不到標題，請手動輸入（尤其常見於 FB／IG／Threads）';
+      }
+    } catch (err) {
+      titleFetchHint.textContent = '抓取標題失敗，請手動輸入';
+    }
   });
 
   addForm.addEventListener('submit', async (e) => {
@@ -177,6 +206,7 @@
       category: fd.get('category'),
       platform: fd.get('platform'),
       url: fd.get('url'),
+      title: fd.get('title'),
       creator_name: fd.get('creator_name'),
     };
 
