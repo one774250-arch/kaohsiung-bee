@@ -117,12 +117,8 @@
     const checkbox = card.querySelector('.card-check');
 
     if (deleteMode) {
-      // 刪除模式下，點卡片任何地方（除了連結本身）都能切換勾選
-      card.addEventListener('click', (e) => {
-        if (e.target.tagName === 'A') return; // 仍允許打開連結確認內容
-        toggleSelect(item.id, card, checkbox);
-      });
-      checkbox.addEventListener('change', () => toggleSelect(item.id, card, checkbox, true));
+      // 刪除模式下，只有核取方塊本身可以切換勾選，點卡片其他地方不會有反應
+      checkbox.addEventListener('change', () => toggleSelect(item.id, card, checkbox));
     } else {
       link.addEventListener('click', () => markRead(item));
     }
@@ -130,14 +126,14 @@
     return card;
   }
 
-  function toggleSelect(id, card, checkbox, fromCheckbox) {
+  function toggleSelect(id, card, checkbox) {
     if (selectedIds.has(id)) {
       selectedIds.delete(id);
     } else {
       selectedIds.add(id);
     }
     card.classList.toggle('selected', selectedIds.has(id));
-    if (!fromCheckbox) checkbox.checked = selectedIds.has(id);
+    checkbox.checked = selectedIds.has(id);
     updateSelectCount();
   }
 
