@@ -1,4 +1,5 @@
 import re
+import html
 import requests
 
 _UA_BROWSER = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -21,6 +22,17 @@ _META_HOSTS = ("facebook.com", "www.facebook.com", "m.facebook.com",
                "instagram.com", "www.instagram.com",
                "threads.net", "www.threads.net")
 
+# 這些是平台首頁／App 殼層的通用標題，代表我們讀到的是「還沒載入實際內容」的原始頁面，
+# 不是這則貼文真正的標題，遇到這些值一律視為抓取失敗，讓使用者自己手動輸入比較不會誤導。
+_無意義標題 = {
+    "threads", "instagram", "facebook", "log into facebook",
+    "log into facebook | facebook", "instagram.com",
+}
+
+
+def _是通用無意義標題(title):
+    return title.strip().lower() in _無意義標題
+
 
 def 抓取標題(url, timeout=4):
     """嘗試抓取網頁的 og:title 或 <title>，任何錯誤都安靜地回傳 None，不中斷新增流程。"""
@@ -31,13 +43,13 @@ def 抓取標題(url, timeout=4):
     host = _取得主機(url)
 
     title = _嘗試抓取(url, _UA_BROWSER, timeout)
-    if title:
+    if title and not _是通用無意義標題(title):
         return title
 
     # 一般瀏覽器身分抓不到，且是 FB/IG/Threads 的話，改用官方爬蟲身分再試一次
     if host in _META_HOSTS:
         title = _嘗試抓取(url, _UA_FB_CRAWLER, timeout)
-        if title:
+        if title and not _是通用無意義標題(title):
             return title
 
     return None
@@ -103,8 +115,6 @@ def _嘗試YouTubeOEmbed(url, timeout):
 
 
 def _清理(text):
-    text = (text.replace("&amp;", "&").replace("&lt;", "<")
-                .replace("&gt;", ">").replace("&quot;", '"')
-                .replace("&#39;", "'").strip())
+    text = html.unescape(text).strip()
     return text[:200] if text else None
 
