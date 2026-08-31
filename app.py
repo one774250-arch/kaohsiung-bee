@@ -3,7 +3,7 @@ from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 
 from database import (
-    初始化資料庫, 新增連結, 取得所有連結, 刪除連結, 標記已讀,
+    初始化資料庫, 新增連結, 取得所有連結, 刪除連結, 標記已讀, 更新連結,
     ALLOWED_CATEGORY, ALLOWED_PLATFORM,
 )
 from fetch_title import 抓取標題
@@ -67,6 +67,30 @@ def 新增連結API():
     新連結["created_at"] = 新連結["created_at"].isoformat()
     新連結["is_read"] = False
     return jsonify(新連結), 201
+
+
+@app.route("/api/links/<int:link_id>", methods=["PUT"])
+def 修改連結API(link_id):
+    data = request.get_json(force=True, silent=True) or {}
+
+    category = data.get("category")
+    platform = data.get("platform")
+    url = (data.get("url") or "").strip()
+    creator_name = (data.get("creator_name") or "").strip() or None
+    title = (data.get("title") or "").strip() or None
+
+    if category not in ALLOWED_CATEGORY:
+        return jsonify({"error": "分類不正確，請選擇「檢舉」或「按讚分享」"}), 400
+    if platform not in ALLOWED_PLATFORM:
+        return jsonify({"error": "社群類型不正確"}), 400
+    if not 網址格式正確(url):
+        return jsonify({"error": "網址格式不正確，請輸入完整的 http(s) 網址"}), 400
+
+    成功 = 更新連結(link_id, category, platform, url, title, creator_name)
+    if not 成功:
+        return jsonify({"error": "找不到這筆連結，可能已被刪除"}), 404
+
+    return jsonify({"ok": True})
 
 
 @app.route("/api/links/bulk-delete", methods=["POST"])

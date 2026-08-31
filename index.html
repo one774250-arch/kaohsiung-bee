@@ -25,10 +25,19 @@
       <svg viewBox="0 0 20 20" class="icon"><path d="M10 4v12M4 10h12"/></svg>
       新增
     </button>
+    <button class="btn btn-ghost" id="btnEnterEdit">
+      <svg viewBox="0 0 20 20" class="icon"><path d="M4 16l1-4 9-9 3 3-9 9-4 1z"/></svg>
+      修改
+    </button>
     <button class="btn btn-ghost" id="btnEnterDelete">
       <svg viewBox="0 0 20 20" class="icon"><path d="M4 6h12M8 6V4h4v2M6 6l1 10h6l1-10"/></svg>
       刪除
     </button>
+  </div>
+
+  <div class="topbar-actions" id="editModeActions" hidden>
+    <span class="select-count">請點選要修改的項目</span>
+    <button class="btn btn-ghost" id="btnCancelEdit">取消</button>
   </div>
 
   <div class="topbar-actions" id="deleteActions" hidden>
@@ -102,6 +111,58 @@
       <div class="modal-actions">
         <button type="button" class="btn btn-ghost" id="btnCancelAdd">取消</button>
         <button type="submit" class="btn btn-primary" id="btnSubmitAdd">確認新增</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- 修改連結 Modal -->
+<div class="modal-backdrop" id="editBackdrop" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="editTitle">
+    <h3 id="editTitle">修改連結</h3>
+    <form id="editForm">
+      <input type="hidden" name="id">
+      <label>
+        分類（必填）
+        <select name="category" required>
+          <option value="report">檢舉</option>
+          <option value="share">按讚分享</option>
+        </select>
+      </label>
+
+      <label>
+        社群類型（必填）
+        <select name="platform" required>
+          <option value="ig">IG</option>
+          <option value="fb">FB</option>
+          <option value="youtube">YouTube</option>
+          <option value="threads">Threads</option>
+          <option value="news">新聞網</option>
+          <option value="other">其他</option>
+        </select>
+      </label>
+
+      <label>
+        網址（必填）
+        <input type="url" name="url" id="editUrlInput" required>
+        <span class="field-hint" id="editTitleFetchHint">可重新貼上網址並自動嘗試抓取標題</span>
+      </label>
+
+      <label>
+        標題（自動抓取，若抓不到可自行輸入）
+        <input type="text" name="title" id="editTitleInput" placeholder="尚未抓取到標題，可以手動輸入">
+      </label>
+
+      <label>
+        新增者（選填）
+        <input type="text" name="creator_name" placeholder="不填則顯示為匿名">
+      </label>
+
+      <p class="form-error" id="editError" hidden></p>
+
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" id="btnCancelEditForm">取消</button>
+        <button type="submit" class="btn btn-primary" id="btnSubmitEdit">儲存修改</button>
       </div>
     </form>
   </div>

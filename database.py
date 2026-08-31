@@ -63,16 +63,24 @@ def 新增連結(category, platform, url, title, creator_name):
 
 
 def 取得所有連結(device_id):
-    """回傳依分類分組的連結清單，每筆會附上「這個裝置」是否已讀"""
+    """回傳依分類分組的連結清單，每筆會附上「這個裝置」是否已讀，
+    以及 click_count：不同裝置的累積點擊數（同一裝置重複點擊不重複計算，
+    因為 link_reads 對 (link_id, device_id) 有唯一限制，一個裝置最多一筆紀錄）"""
     conn = 取得連線()
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
     cur.execute("""
         SELECT l.id, l.category, l.platform, l.url, l.title, l.creator_name, l.created_at,
-               CASE WHEN r.id IS NULL THEN FALSE ELSE TRUE END AS is_read
+               CASE WHEN r.id IS NULL THEN FALSE ELSE TRUE END AS is_read,
+               COALESCE(rc.click_count, 0) AS click_count
         FROM links l
         LEFT JOIN link_reads r
           ON r.link_id = l.id AND r.device_id = %s
+        LEFT JOIN (
+            SELECT link_id, COUNT(*) AS click_count
+            FROM link_reads
+            GROUP BY link_id
+        ) rc ON rc.link_id = l.id
         ORDER BY l.created_at DESC
     """, (device_id,))
 
@@ -87,6 +95,21 @@ def 取得所有連結(device_id):
         分組結果.setdefault(item["category"], []).append(item)
 
     return 分組結果
+
+
+def 更新連結(link_id, category, platform, url, title, creator_name):
+    conn = 取得連線()
+    cur = conn.cursor()
+    cur.execute("""
+        UPDATE links
+        SET category = %s, platform = %s, url = %s, title = %s, creator_name = %s
+        WHERE id = %s
+    """, (category, platform, url, title, creator_name, link_id))
+    影響筆數 = cur.rowcount
+    conn.commit()
+    cur.close()
+    conn.close()
+    return 影響筆數 > 0
 
 
 def 刪除連結(ids):

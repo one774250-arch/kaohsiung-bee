@@ -23,10 +23,13 @@
   const shareEmpty = document.getElementById('shareEmpty');
 
   const normalActions = document.getElementById('normalActions');
+  const editModeActions = document.getElementById('editModeActions');
   const deleteActions = document.getElementById('deleteActions');
   const selectCountEl = document.getElementById('selectCount');
 
   const btnAdd = document.getElementById('btnAdd');
+  const btnEnterEdit = document.getElementById('btnEnterEdit');
+  const btnCancelEdit = document.getElementById('btnCancelEdit');
   const btnEnterDelete = document.getElementById('btnEnterDelete');
   const btnCancelDelete = document.getElementById('btnCancelDelete');
   const btnConfirmDelete = document.getElementById('btnConfirmDelete');
@@ -40,6 +43,15 @@
   const titleInput = document.getElementById('titleInput');
   const titleFetchHint = document.getElementById('titleFetchHint');
 
+  const editBackdrop = document.getElementById('editBackdrop');
+  const editForm = document.getElementById('editForm');
+  const editError = document.getElementById('editError');
+  const btnCancelEditForm = document.getElementById('btnCancelEditForm');
+  const btnSubmitEdit = document.getElementById('btnSubmitEdit');
+  const editUrlInput = document.getElementById('editUrlInput');
+  const editTitleInput = document.getElementById('editTitleInput');
+  const editTitleFetchHint = document.getElementById('editTitleFetchHint');
+
   const confirmBackdrop = document.getElementById('confirmBackdrop');
   const confirmText = document.getElementById('confirmText');
   const btnCancelConfirm = document.getElementById('btnCancelConfirm');
@@ -48,6 +60,7 @@
   const toastEl = document.getElementById('toast');
 
   let deleteMode = false;
+  let editMode = false;
   let selectedIds = new Set();
   let currentData = { report: [], share: [] };
 
@@ -93,13 +106,14 @@
 
   function renderCard(item) {
     const card = document.createElement('div');
-    card.className = 'card' + (selectedIds.has(item.id) ? ' selected' : '');
+    card.className = 'card' + (selectedIds.has(item.id) ? ' selected' : '') + (editMode ? ' editable' : '');
     card.dataset.id = item.id;
 
     const creator = item.creator_name ? escapeHtml(item.creator_name) : '匿名';
     const platformLabel = PLATFORM_LABEL[item.platform] || item.platform;
     const titleText = item.title ? escapeHtml(item.title) : '（未取得標題，點擊查看內容）';
     const titleClass = item.title ? '' : ' no-title';
+    const clickCount = item.click_count || 0;
 
     card.innerHTML = `
       ${deleteMode ? `<input type="checkbox" class="card-check" ${selectedIds.has(item.id) ? 'checked' : ''}>` : ''}
@@ -108,9 +122,10 @@
         <p class="card-meta">
           <span class="platform-tag">${escapeHtml(platformLabel)}</span>
           <span>由 ${creator} 新增</span>
+          <span class="click-count">點擊 ${clickCount} 次</span>
         </p>
       </div>
-      ${deleteMode ? '' : `<span class="read-tag ${item.is_read ? 'read' : 'unread'}">${item.is_read ? '已點閱' : '尚未點閱'}</span>`}
+      ${(deleteMode || editMode) ? '' : `<span class="read-tag ${item.is_read ? 'read' : 'unread'}">${item.is_read ? '已點閱' : '尚未點閱'}</span>`}
     `;
 
     const link = card.querySelector('.card-title');
@@ -119,6 +134,16 @@
     if (deleteMode) {
       // 刪除模式下，只有核取方塊本身可以切換勾選，點卡片其他地方不會有反應
       checkbox.addEventListener('change', () => toggleSelect(item.id, card, checkbox));
+    } else if (editMode) {
+      // 修改模式下，點卡片（含標題）直接開啟修改視窗，不會另外開新分頁
+      link.addEventListener('click', (e) => {
+        e.preventDefault();
+        openEditModal(item);
+      });
+      card.addEventListener('click', (e) => {
+        if (e.target === link) return; // 已由上面的 link 監聽器處理，避免重複觸發
+        openEditModal(item);
+      });
     } else {
       link.addEventListener('click', () => markRead(item));
     }
@@ -232,6 +257,114 @@
     } finally {
       btnSubmitAdd.disabled = false;
       btnSubmitAdd.textContent = '確認新增';
+    }
+  });
+
+  // ---------- 修改模式 ----------
+  btnEnterEdit.addEventListener('click', () => {
+    editMode = true;
+    normalActions.hidden = true;
+    editModeActions.hidden = false;
+    render();
+  });
+
+  function exitEditMode() {
+    editMode = false;
+    normalActions.hidden = false;
+    editModeActions.hidden = true;
+    render();
+  }
+
+  btnCancelEdit.addEventListener('click', exitEditMode);
+
+  function openEditModal(item) {
+    editForm.reset();
+    editError.hidden = true;
+    editForm.elements['id'].value = item.id;
+    editForm.elements['category'].value = item.category;
+    editForm.elements['platform'].value = item.platform;
+    editUrlInput.value = item.url;
+    editTitleInput.value = item.title || '';
+    editForm.elements['creator_name'].value = item.creator_name || '';
+    editTitleFetchHint.textContent = '可重新貼上網址並自動嘗試抓取標題';
+    editBackdrop.hidden = false;
+  }
+
+  btnCancelEditForm.addEventListener('click', () => {
+    editBackdrop.hidden = true;
+    exitEditMode();
+  });
+  editBackdrop.addEventListener('click', (e) => {
+    if (e.target === editBackdrop) {
+      editBackdrop.hidden = true;
+      exitEditMode();
+    }
+  });
+
+  editUrlInput.addEventListener('blur', async () => {
+    const url = editUrlInput.value.trim();
+    if (!url) return;
+    try {
+      new URL(url);
+    } catch (_) {
+      return;
+    }
+
+    editTitleFetchHint.textContent = '正在嘗試抓取標題…';
+    try {
+      const res = await fetch(`${API_URL}/api/fetch-title?url=${encodeURIComponent(url)}`);
+      const data = await res.json();
+      if (data.title) {
+        editTitleInput.value = data.title;
+        editTitleFetchHint.textContent = '已自動帶入標題，可自行修改';
+      } else {
+        editTitleFetchHint.textContent = '抓不到標題，請手動輸入（尤其常見於 FB／IG／Threads）';
+      }
+    } catch (err) {
+      editTitleFetchHint.textContent = '抓取標題失敗，請手動輸入';
+    }
+  });
+
+  editForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    editError.hidden = true;
+    const fd = new FormData(editForm);
+    const id = fd.get('id');
+    const payload = {
+      category: fd.get('category'),
+      platform: fd.get('platform'),
+      url: fd.get('url'),
+      title: fd.get('title'),
+      creator_name: fd.get('creator_name'),
+    };
+
+    btnSubmitEdit.disabled = true;
+    btnSubmitEdit.textContent = '儲存中…';
+
+    try {
+      const res = await fetch(`${API_URL}/api/links/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        editError.textContent = data.error || '修改失敗，請確認欄位內容';
+        editError.hidden = false;
+        return;
+      }
+
+      editBackdrop.hidden = true;
+      exitEditMode();
+      await loadLinks();
+      toast('已儲存修改');
+    } catch (err) {
+      editError.textContent = '網路連線異常，請稍後再試';
+      editError.hidden = false;
+    } finally {
+      btnSubmitEdit.disabled = false;
+      btnSubmitEdit.textContent = '儲存修改';
     }
   });
 

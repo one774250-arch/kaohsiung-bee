@@ -216,6 +216,18 @@ button{ font-family:inherit; cursor:pointer; }
   color:var(--ink-soft);
 }
 
+.click-count{
+  font-size:11.5px;
+  color:var(--ink-soft);
+}
+
+.card.editable{
+  cursor:pointer;
+}
+.card.editable:hover{
+  border-color:var(--honey-dark);
+}
+
 .read-tag{
   flex-shrink:0;
   align-self:center;
