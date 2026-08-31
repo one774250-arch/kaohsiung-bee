@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>高雄小蜜蜂｜共用連結看板</title>
+<script src="/config.js"></script>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <svg class="brand-hex" viewBox="0 0 40 40" aria-hidden="true">
+      <polygon points="20,2 36,11 36,29 20,38 4,29 4,11" />
+    </svg>
+    <div class="brand-text">
+      <h1>高雄小蜜蜂</h1>
+      <p>共用連結看板・大家一起蒐集、檢舉、分享</p>
+    </div>
+  </div>
+
+  <div class="topbar-actions" id="normalActions">
+    <button class="btn btn-ghost" id="btnAdd">
+      <svg viewBox="0 0 20 20" class="icon"><path d="M10 4v12M4 10h12"/></svg>
+      新增
+    </button>
+    <button class="btn btn-ghost" id="btnEnterDelete">
+      <svg viewBox="0 0 20 20" class="icon"><path d="M4 6h12M8 6V4h4v2M6 6l1 10h6l1-10"/></svg>
+      刪除
+    </button>
+  </div>
+
+  <div class="topbar-actions" id="deleteActions" hidden>
+    <span class="select-count" id="selectCount">已選取 0 筆</span>
+    <button class="btn btn-danger" id="btnConfirmDelete">刪除選取項目</button>
+    <button class="btn btn-ghost" id="btnCancelDelete">取消</button>
+  </div>
+</header>
+
+<main class="board">
+  <section class="column column-report" aria-labelledby="reportHeading">
+    <h2 id="reportHeading"><span class="dot dot-report"></span>檢舉區</h2>
+    <div class="cardlist" id="reportList"></div>
+    <p class="empty-hint" id="reportEmpty" hidden>目前還沒有人新增檢舉項目。</p>
+  </section>
+
+  <div class="divider" aria-hidden="true"></div>
+
+  <section class="column column-share" aria-labelledby="shareHeading">
+    <h2 id="shareHeading"><span class="dot dot-share"></span>按讚分享區</h2>
+    <div class="cardlist" id="shareList"></div>
+    <p class="empty-hint" id="shareEmpty" hidden>目前還沒有人新增分享項目。</p>
+  </section>
+</main>
+
+<!-- 新增連結 Modal -->
+<div class="modal-backdrop" id="addBackdrop" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="addTitle">
+    <h3 id="addTitle">新增連結</h3>
+    <form id="addForm">
+      <label>
+        分類（必填）
+        <select name="category" required>
+          <option value="" disabled selected>請選擇分類</option>
+          <option value="report">檢舉</option>
+          <option value="share">按讚分享</option>
+        </select>
+      </label>
+
+      <label>
+        社群類型（必填）
+        <select name="platform" required>
+          <option value="" disabled selected>請選擇社群類型</option>
+          <option value="ig">IG</option>
+          <option value="fb">FB</option>
+          <option value="youtube">YouTube</option>
+          <option value="threads">Threads</option>
+          <option value="news">新聞網</option>
+          <option value="other">其他</option>
+        </select>
+      </label>
+
+      <label>
+        網址（必填）
+        <input type="url" name="url" placeholder="貼上網址，例如 https://..." required>
+        <span class="field-hint">貼上後將自動嘗試抓取標題，抓取失敗則略過</span>
+      </label>
+
+      <label>
+        新增者（選填）
+        <input type="text" name="creator_name" placeholder="不填則顯示為匿名">
+      </label>
+
+      <p class="form-error" id="addError" hidden></p>
+
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" id="btnCancelAdd">取消</button>
+        <button type="submit" class="btn btn-primary" id="btnSubmitAdd">確認新增</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- 刪除確認 Modal -->
+<div class="modal-backdrop" id="confirmBackdrop" hidden>
+  <div class="modal modal-small" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+    <h3 id="confirmTitle">確定刪除？</h3>
+    <p class="confirm-text" id="confirmText"></p>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-ghost" id="btnCancelConfirm">取消</button>
+      <button type="button" class="btn btn-danger" id="btnDoDelete">刪除</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast" hidden></div>
+
+<script src="main.js"></script>
+</body>
+</html>
