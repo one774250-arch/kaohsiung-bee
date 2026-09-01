@@ -68,12 +68,24 @@
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="addTitle">
     <h3 id="addTitle">新增連結</h3>
     <form id="addForm">
+      <label class="checkbox-label">
+        <input type="checkbox" name="is_priority" class="priority-checkbox">
+        優先處理（勾選後卡片會標示為優先項目）
+      </label>
+
+      <label>
+        日期（系統自動帶出，新增當下的日期）
+        <input type="text" class="readonly-field" id="addDateDisplay" readonly>
+      </label>
+
       <label>
         分類（必填）
         <select name="category" required>
           <option value="" disabled selected>請選擇分類</option>
-          <option value="report">檢舉</option>
-          <option value="share">按讚分享</option>
+          <option value="report">檢舉貼文</option>
+          <option value="report_comment">檢舉留言</option>
+          <option value="share">按讚分享貼文</option>
+          <option value="share_comment">按讚留言</option>
         </select>
       </label>
 
@@ -103,7 +115,8 @@
 
       <label>
         新增者（選填）
-        <input type="text" name="creator_name" placeholder="不填則顯示為匿名">
+        <input type="text" name="creator_name" id="creatorInput" list="creatorSuggestions" placeholder="不填則顯示為匿名，可從清單挑選常用名字" autocomplete="off">
+        <datalist id="creatorSuggestions"></datalist>
       </label>
 
       <p class="form-error" id="addError" hidden></p>
@@ -122,11 +135,24 @@
     <h3 id="editTitle">修改連結</h3>
     <form id="editForm">
       <input type="hidden" name="id">
+
+      <label class="checkbox-label">
+        <input type="checkbox" name="is_priority" class="priority-checkbox" id="editPriorityCheckbox">
+        優先處理（勾選後卡片會標示為優先項目）
+      </label>
+
+      <label>
+        日期（原始新增日期，不可修改）
+        <input type="text" class="readonly-field" id="editDateDisplay" readonly>
+      </label>
+
       <label>
         分類（必填）
         <select name="category" required>
-          <option value="report">檢舉</option>
-          <option value="share">按讚分享</option>
+          <option value="report">檢舉貼文</option>
+          <option value="report_comment">檢舉留言</option>
+          <option value="share">按讚分享貼文</option>
+          <option value="share_comment">按讚留言</option>
         </select>
       </label>
 
@@ -155,7 +181,7 @@
 
       <label>
         新增者（選填）
-        <input type="text" name="creator_name" placeholder="不填則顯示為匿名">
+        <input type="text" name="creator_name" id="editCreatorInput" list="creatorSuggestions" placeholder="不填則顯示為匿名" autocomplete="off">
       </label>
 
       <p class="form-error" id="editError" hidden></p>

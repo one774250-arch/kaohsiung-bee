@@ -221,6 +221,69 @@ button{ font-family:inherit; cursor:pointer; }
   color:var(--ink-soft);
 }
 
+.seq-badge{
+  flex-shrink:0;
+  width:24px;
+  height:24px;
+  border-radius:7px;
+  background:#EFEADB;
+  color:var(--ink-soft);
+  font-size:12px;
+  font-weight:700;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  margin-top:2px;
+}
+
+.card-title-row{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  margin-bottom:4px;
+  flex-wrap:wrap;
+}
+.card-title-row .card-title{ margin-bottom:0; }
+
+.priority-badge{
+  flex-shrink:0;
+  font-size:11px;
+  font-weight:700;
+  padding:2px 8px;
+  border-radius:6px;
+  background:var(--honey);
+  color:#2B1C05;
+}
+
+.category-tag{
+  font-size:11px;
+  padding:1px 7px;
+  border-radius:5px;
+  background:#F0E4D8;
+  color:var(--ink-soft);
+}
+
+.checkbox-label{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  font-size:13px;
+  color:var(--ink-soft);
+  margin-bottom:14px;
+}
+.checkbox-label input[type="checkbox"]{
+  width:16px;
+  height:16px;
+  accent-color: var(--honey-dark);
+  flex-shrink:0;
+}
+
+.readonly-field{
+  background:#F3F1E9;
+  color:var(--ink-soft);
+  cursor:default;
+}
+
 .card.editable{
   cursor:pointer;
 }

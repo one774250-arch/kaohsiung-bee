@@ -51,9 +51,10 @@ def 新增連結API():
     url = (data.get("url") or "").strip()
     creator_name = (data.get("creator_name") or "").strip() or None
     手動標題 = (data.get("title") or "").strip() or None
+    is_priority = bool(data.get("is_priority"))
 
     if category not in ALLOWED_CATEGORY:
-        return jsonify({"error": "分類不正確，請選擇「檢舉」或「按讚分享」"}), 400
+        return jsonify({"error": "分類不正確"}), 400
     if platform not in ALLOWED_PLATFORM:
         return jsonify({"error": "社群類型不正確"}), 400
     if not 網址格式正確(url):
@@ -63,9 +64,10 @@ def 新增連結API():
     # 沒有的話後端再嘗試自動抓取一次作為保底
     title = 手動標題 or 抓取標題(url)
 
-    新連結 = 新增連結(category, platform, url, title, creator_name)
+    新連結 = 新增連結(category, platform, url, title, creator_name, is_priority)
     新連結["created_at"] = 新連結["created_at"].isoformat()
     新連結["is_read"] = False
+    新連結["click_count"] = 0
     return jsonify(新連結), 201
 
 
@@ -78,15 +80,16 @@ def 修改連結API(link_id):
     url = (data.get("url") or "").strip()
     creator_name = (data.get("creator_name") or "").strip() or None
     title = (data.get("title") or "").strip() or None
+    is_priority = bool(data.get("is_priority"))
 
     if category not in ALLOWED_CATEGORY:
-        return jsonify({"error": "分類不正確，請選擇「檢舉」或「按讚分享」"}), 400
+        return jsonify({"error": "分類不正確"}), 400
     if platform not in ALLOWED_PLATFORM:
         return jsonify({"error": "社群類型不正確"}), 400
     if not 網址格式正確(url):
         return jsonify({"error": "網址格式不正確，請輸入完整的 http(s) 網址"}), 400
 
-    成功 = 更新連結(link_id, category, platform, url, title, creator_name)
+    成功 = 更新連結(link_id, category, platform, url, title, creator_name, is_priority)
     if not 成功:
         return jsonify({"error": "找不到這筆連結，可能已被刪除"}), 404
 

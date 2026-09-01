@@ -5,8 +5,13 @@ import psycopg2.extras
 
 DATABASE_URL = os.environ.get("DATABASE_URL")
 
-ALLOWED_CATEGORY = {"report", "share"}
+ALLOWED_CATEGORY = {"report", "report_comment", "share", "share_comment"}
 ALLOWED_PLATFORM = {"ig", "fb", "youtube", "threads", "news", "other"}
+
+
+def 分類所屬看板(category):
+    """檢舉、檢舉留言 -> 檢舉區；按讚分享、按讚留言 -> 按讚分享區"""
+    return "report" if category in ("report", "report_comment") else "share"
 
 
 def 取得連線():
@@ -29,6 +34,11 @@ def 初始化資料庫():
         )
     """)
 
+    # 遷移：舊版資料表把分類限制在 report/share 兩種，現在要開放 report_comment/share_comment，
+    # 用 IF EXISTS 讓這段在全新資料庫、或已經跑過一次的資料庫上都能安全重複執行
+    cur.execute("ALTER TABLE links DROP CONSTRAINT IF EXISTS links_category_check")
+    cur.execute("ALTER TABLE links ADD COLUMN IF NOT EXISTS is_priority BOOLEAN NOT NULL DEFAULT FALSE")
+
     cur.execute("""
         CREATE TABLE IF NOT EXISTS link_reads (
             id SERIAL PRIMARY KEY,
@@ -45,15 +55,15 @@ def 初始化資料庫():
     print("資料庫初始化完成！")
 
 
-def 新增連結(category, platform, url, title, creator_name):
+def 新增連結(category, platform, url, title, creator_name, is_priority=False):
     conn = 取得連線()
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
     cur.execute("""
-        INSERT INTO links (category, platform, url, title, creator_name)
-        VALUES (%s, %s, %s, %s, %s)
-        RETURNING id, category, platform, url, title, creator_name, created_at
-    """, (category, platform, url, title, creator_name))
+        INSERT INTO links (category, platform, url, title, creator_name, is_priority)
+        VALUES (%s, %s, %s, %s, %s, %s)
+        RETURNING id, category, platform, url, title, creator_name, created_at, is_priority
+    """, (category, platform, url, title, creator_name, is_priority))
 
     row = cur.fetchone()
     conn.commit()
@@ -71,6 +81,7 @@ def 取得所有連結(device_id):
 
     cur.execute("""
         SELECT l.id, l.category, l.platform, l.url, l.title, l.creator_name, l.created_at,
+               l.is_priority,
                CASE WHEN r.id IS NULL THEN FALSE ELSE TRUE END AS is_read,
                COALESCE(rc.click_count, 0) AS click_count
         FROM links l
@@ -92,19 +103,19 @@ def 取得所有連結(device_id):
     for row in rows:
         item = dict(row)
         item["created_at"] = item["created_at"].isoformat() if item["created_at"] else None
-        分組結果.setdefault(item["category"], []).append(item)
+        分組結果[分類所屬看板(item["category"])].append(item)
 
     return 分組結果
 
 
-def 更新連結(link_id, category, platform, url, title, creator_name):
+def 更新連結(link_id, category, platform, url, title, creator_name, is_priority=False):
     conn = 取得連線()
     cur = conn.cursor()
     cur.execute("""
         UPDATE links
-        SET category = %s, platform = %s, url = %s, title = %s, creator_name = %s
+        SET category = %s, platform = %s, url = %s, title = %s, creator_name = %s, is_priority = %s
         WHERE id = %s
-    """, (category, platform, url, title, creator_name, link_id))
+    """, (category, platform, url, title, creator_name, is_priority, link_id))
     影響筆數 = cur.rowcount
     conn.commit()
     cur.close()

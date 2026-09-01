@@ -16,6 +16,54 @@
     threads: 'Threads', news: '新聞網', other: '其他',
   };
 
+  const CATEGORY_LABEL = {
+    report: '檢舉貼文', report_comment: '檢舉留言',
+    share: '按讚分享貼文', share_comment: '按讚留言',
+  };
+
+  // 卡片上的標籤只需要區分是「貼文」還是「留言」，不用顯示完整分類名稱
+  const CONTENT_TYPE_LABEL = {
+    report: '貼文', share: '貼文',
+    report_comment: '留言', share_comment: '留言',
+  };
+
+  // ---------- 新增者記憶清單（存在瀏覽器裡，換裝置或清資料會重置） ----------
+  const CREATOR_KEY = 'bee_creator_names';
+
+  function 取得常用新增者清單() {
+    try {
+      return JSON.parse(localStorage.getItem(CREATOR_KEY)) || [];
+    } catch (_) {
+      return [];
+    }
+  }
+
+  function 記住新增者(name) {
+    if (!name) return;
+    const list = 取得常用新增者清單();
+    const idx = list.indexOf(name);
+    if (idx !== -1) list.splice(idx, 1);
+    list.unshift(name);
+    localStorage.setItem(CREATOR_KEY, JSON.stringify(list.slice(0, 20)));
+    渲染新增者建議清單();
+  }
+
+  function 渲染新增者建議清單() {
+    const datalist = document.getElementById('creatorSuggestions');
+    if (!datalist) return;
+    datalist.innerHTML = 取得常用新增者清單()
+      .map(name => `<option value="${escapeHtml(name)}"></option>`)
+      .join('');
+  }
+
+  // ---------- 民國年日期格式 ----------
+  function 轉為民國日期(date) {
+    const y = date.getFullYear() - 1911;
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}/${m}/${d}`;
+  }
+
   // ---------- DOM refs ----------
   const reportList = document.getElementById('reportList');
   const shareList = document.getElementById('shareList');
@@ -42,6 +90,8 @@
   const urlInput = document.getElementById('urlInput');
   const titleInput = document.getElementById('titleInput');
   const titleFetchHint = document.getElementById('titleFetchHint');
+  const addDateDisplay = document.getElementById('addDateDisplay');
+  const creatorInput = document.getElementById('creatorInput');
 
   const editBackdrop = document.getElementById('editBackdrop');
   const editForm = document.getElementById('editForm');
@@ -51,6 +101,9 @@
   const editUrlInput = document.getElementById('editUrlInput');
   const editTitleInput = document.getElementById('editTitleInput');
   const editTitleFetchHint = document.getElementById('editTitleFetchHint');
+  const editDateDisplay = document.getElementById('editDateDisplay');
+  const editPriorityCheckbox = document.getElementById('editPriorityCheckbox');
+  const editCreatorInput = document.getElementById('editCreatorInput');
 
   const confirmBackdrop = document.getElementById('confirmBackdrop');
   const confirmText = document.getElementById('confirmText');
@@ -99,27 +152,33 @@
     container.innerHTML = '';
     emptyEl.hidden = items.length > 0;
 
-    for (const item of items) {
-      container.appendChild(renderCard(item));
-    }
+    items.forEach((item, index) => {
+      container.appendChild(renderCard(item, index + 1));
+    });
   }
 
-  function renderCard(item) {
+  function renderCard(item, seq) {
     const card = document.createElement('div');
     card.className = 'card' + (selectedIds.has(item.id) ? ' selected' : '') + (editMode ? ' editable' : '');
     card.dataset.id = item.id;
 
     const creator = item.creator_name ? escapeHtml(item.creator_name) : '匿名';
     const platformLabel = PLATFORM_LABEL[item.platform] || item.platform;
+    const categoryLabel = CONTENT_TYPE_LABEL[item.category] || item.category;
     const titleText = item.title ? escapeHtml(item.title) : '（未取得標題，點擊查看內容）';
     const titleClass = item.title ? '' : ' no-title';
     const clickCount = item.click_count || 0;
 
     card.innerHTML = `
+      <span class="seq-badge">${seq}</span>
       ${deleteMode ? `<input type="checkbox" class="card-check" ${selectedIds.has(item.id) ? 'checked' : ''}>` : ''}
       <div class="card-body">
-        <a class="card-title${titleClass}" href="${escapeHtml(item.url)}" target="_blank" rel="noopener">${titleText}</a>
+        <div class="card-title-row">
+          ${item.is_priority ? '<span class="priority-badge">優先</span>' : ''}
+          <a class="card-title${titleClass}" href="${escapeHtml(item.url)}" target="_blank" rel="noopener">${titleText}</a>
+        </div>
         <p class="card-meta">
+          <span class="category-tag">${escapeHtml(categoryLabel)}</span>
           <span class="platform-tag">${escapeHtml(platformLabel)}</span>
           <span>由 ${creator} 新增</span>
           <span class="click-count">點擊 ${clickCount} 次</span>
@@ -187,6 +246,8 @@
     addForm.reset();
     addError.hidden = true;
     titleFetchHint.textContent = '貼上後將自動嘗試抓取標題';
+    addDateDisplay.value = 轉為民國日期(new Date());
+    渲染新增者建議清單();
     addBackdrop.hidden = false;
   });
   btnCancelAdd.addEventListener('click', () => { addBackdrop.hidden = true; });
@@ -229,6 +290,7 @@
       url: fd.get('url'),
       title: fd.get('title'),
       creator_name: fd.get('creator_name'),
+      is_priority: fd.get('is_priority') === 'on',
     };
 
     btnSubmitAdd.disabled = true;
@@ -248,6 +310,7 @@
         return;
       }
 
+      記住新增者(payload.creator_name.trim());
       addBackdrop.hidden = true;
       await loadLinks();
       toast('已新增連結');
@@ -285,8 +348,11 @@
     editForm.elements['platform'].value = item.platform;
     editUrlInput.value = item.url;
     editTitleInput.value = item.title || '';
-    editForm.elements['creator_name'].value = item.creator_name || '';
+    editCreatorInput.value = item.creator_name || '';
+    editPriorityCheckbox.checked = !!item.is_priority;
+    editDateDisplay.value = item.created_at ? 轉為民國日期(new Date(item.created_at)) : '';
     editTitleFetchHint.textContent = '可重新貼上網址並自動嘗試抓取標題';
+    渲染新增者建議清單();
     editBackdrop.hidden = false;
   }
 
@@ -336,6 +402,7 @@
       url: fd.get('url'),
       title: fd.get('title'),
       creator_name: fd.get('creator_name'),
+      is_priority: fd.get('is_priority') === 'on',
     };
 
     btnSubmitEdit.disabled = true;
@@ -355,6 +422,7 @@
         return;
       }
 
+      記住新增者(payload.creator_name.trim());
       editBackdrop.hidden = true;
       exitEditMode();
       await loadLinks();
@@ -424,5 +492,6 @@
   });
 
   // ---------- 初始化 ----------
+  渲染新增者建議清單();
   loadLinks();
 })();
