@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>高雄小蜜蜂｜共用連結看板</title>
+<script src="/config.js"></script>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <svg class="brand-hex" viewBox="0 0 40 40" aria-hidden="true">
+      <polygon points="20,2 36,11 36,29 20,38 4,29 4,11" />
+    </svg>
+    <div class="brand-text">
+      <h1>高雄小蜜蜂</h1>
+      <p>共用連結看板・大家一起蒐集、檢舉、分享</p>
+    </div>
+  </div>
+
+  <div class="topbar-actions" id="normalActions">
+    <button class="btn btn-ghost" id="btnAdd">
+      <svg viewBox="0 0 20 20" class="icon"><path d="M10 4v12M4 10h12"/></svg>
+      新增
+    </button>
+    <button class="btn btn-ghost" id="btnEnterEdit">
+      <svg viewBox="0 0 20 20" class="icon"><path d="M4 16l1-4 9-9 3 3-9 9-4 1z"/></svg>
+      修改
+    </button>
+    <button class="btn btn-ghost" id="btnEnterDelete">
+      <svg viewBox="0 0 20 20" class="icon"><path d="M4 6h12M8 6V4h4v2M6 6l1 10h6l1-10"/></svg>
+      刪除
+    </button>
+  </div>
+
+  <div class="topbar-actions" id="editModeActions" hidden>
+    <span class="select-count">請點選要修改的項目</span>
+    <button class="btn btn-ghost" id="btnCancelEdit">取消</button>
+  </div>
+
+  <div class="topbar-actions" id="deleteActions" hidden>
+    <span class="select-count" id="selectCount">已選取 0 筆</span>
+    <button class="btn btn-danger" id="btnConfirmDelete">刪除選取項目</button>
+    <button class="btn btn-ghost" id="btnCancelDelete">取消</button>
+  </div>
+</header>
+
+<main class="board">
+  <section class="column column-report" aria-labelledby="reportHeading">
+    <h2 id="reportHeading"><span class="dot dot-report"></span>檢舉區</h2>
+    <div class="cardlist" id="reportList"></div>
+    <p class="empty-hint" id="reportEmpty" hidden>目前還沒有人新增檢舉項目。</p>
+  </section>
+
+  <section class="column column-share" aria-labelledby="shareHeading">
+    <h2 id="shareHeading"><span class="dot dot-share"></span>按讚分享區</h2>
+    <div class="cardlist" id="shareList"></div>
+    <p class="empty-hint" id="shareEmpty" hidden>目前還沒有人新增分享項目。</p>
+  </section>
+
+  <section class="column column-friend" aria-labelledby="friendHeading">
+    <h2 id="friendHeading"><span class="dot dot-friend"></span>小帳加好友區</h2>
+    <div class="cardlist" id="friendList"></div>
+    <p class="empty-hint" id="friendEmpty" hidden>目前還沒有人新增小帳加好友項目。</p>
+  </section>
+</main>
+
+<!-- 新增連結 Modal -->
+<div class="modal-backdrop" id="addBackdrop" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="addTitle">
+    <h3 id="addTitle">新增連結</h3>
+    <form id="addForm">
+      <label class="checkbox-label">
+        <input type="checkbox" name="is_priority" class="priority-checkbox">
+        優先處理（勾選後卡片會標示為優先項目）
+      </label>
+
+      <label>
+        日期（系統自動帶出，新增當下的日期）
+        <input type="text" class="readonly-field" id="addDateDisplay" readonly>
+      </label>
+
+      <label>
+        分類（必填）
+        <select name="category" required>
+          <option value="" disabled selected>請選擇分類</option>
+          <option value="report">檢舉貼文</option>
+          <option value="report_comment">檢舉留言</option>
+          <option value="share">按讚分享貼文</option>
+          <option value="share_comment">按讚留言</option>
+          <option value="friend_add">小帳加好友</option>
+        </select>
+      </label>
+
+      <label>
+        社群類型（必填）
+        <select name="platform" required>
+          <option value="" disabled selected>請選擇社群類型</option>
+          <option value="ig">IG</option>
+          <option value="fb">FB</option>
+          <option value="youtube">YouTube</option>
+          <option value="threads">Threads</option>
+          <option value="news">新聞網</option>
+          <option value="other">其他</option>
+        </select>
+      </label>
+
+      <label>
+        網址（必填）
+        <input type="url" name="url" id="urlInput" placeholder="貼上網址，例如 https://..." required>
+        <span class="field-hint" id="titleFetchHint">貼上後將自動嘗試抓取標題</span>
+      </label>
+
+      <label>
+        標題（自動抓取，若抓不到可自行輸入）
+        <input type="text" name="title" id="titleInput" placeholder="尚未抓取到標題，可以手動輸入">
+      </label>
+
+      <label>
+        新增者（選填）
+        <input type="text" name="creator_name" id="creatorInput" list="creatorSuggestions" placeholder="不填則顯示為匿名，可從清單挑選常用名字" autocomplete="off">
+        <datalist id="creatorSuggestions"></datalist>
+      </label>
+
+      <p class="form-error" id="addError" hidden></p>
+
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" id="btnCancelAdd">取消</button>
+        <button type="submit" class="btn btn-primary" id="btnSubmitAdd">確認新增</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- 修改連結 Modal -->
+<div class="modal-backdrop" id="editBackdrop" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="editTitle">
+    <h3 id="editTitle">修改連結</h3>
+    <form id="editForm">
+      <input type="hidden" name="id">
+
+      <label class="checkbox-label">
+        <input type="checkbox" name="is_priority" class="priority-checkbox" id="editPriorityCheckbox">
+        優先處理（勾選後卡片會標示為優先項目）
+      </label>
+
+      <label>
+        日期（原始新增日期，不可修改）
+        <input type="text" class="readonly-field" id="editDateDisplay" readonly>
+      </label>
+
+      <label>
+        分類（必填）
+        <select name="category" required>
+          <option value="report">檢舉貼文</option>
+          <option value="report_comment">檢舉留言</option>
+          <option value="share">按讚分享貼文</option>
+          <option value="share_comment">按讚留言</option>
+          <option value="friend_add">小帳加好友</option>
+        </select>
+      </label>
+
+      <label>
+        社群類型（必填）
+        <select name="platform" required>
+          <option value="ig">IG</option>
+          <option value="fb">FB</option>
+          <option value="youtube">YouTube</option>
+          <option value="threads">Threads</option>
+          <option value="news">新聞網</option>
+          <option value="other">其他</option>
+        </select>
+      </label>
+
+      <label>
+        網址（必填）
+        <input type="url" name="url" id="editUrlInput" required>
+        <span class="field-hint" id="editTitleFetchHint">可重新貼上網址並自動嘗試抓取標題</span>
+      </label>
+
+      <label>
+        標題（自動抓取，若抓不到可自行輸入）
+        <input type="text" name="title" id="editTitleInput" placeholder="尚未抓取到標題，可以手動輸入">
+      </label>
+
+      <label>
+        新增者（選填）
+        <input type="text" name="creator_name" id="editCreatorInput" list="creatorSuggestions" placeholder="不填則顯示為匿名" autocomplete="off">
+      </label>
+
+      <p class="form-error" id="editError" hidden></p>
+
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" id="btnCancelEditForm">取消</button>
+        <button type="submit" class="btn btn-primary" id="btnSubmitEdit">儲存修改</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- 刪除確認 Modal -->
+<div class="modal-backdrop" id="confirmBackdrop" hidden>
+  <div class="modal modal-small" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+    <h3 id="confirmTitle">確定刪除？</h3>
+    <p class="confirm-text" id="confirmText"></p>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-ghost" id="btnCancelConfirm">取消</button>
+      <button type="button" class="btn btn-danger" id="btnDoDelete">刪除</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast" hidden></div>
+
+<script src="main.js"></script>
+</body>
+</html>

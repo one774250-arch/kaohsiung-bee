@@ -278,14 +278,7 @@
         titleInput.value = data.title;
         titleFetchHint.textContent = '已自動帶入標題，可自行修改';
       } else {
-        const platformValue = addForm.elements['platform'].value;
-        const platformLabel = PLATFORM_LABEL[platformValue];
-        if (platformLabel) {
-          titleInput.value = platformLabel;
-          titleFetchHint.textContent = '抓不到標題，已自動帶入社群類型文字，可自行修改';
-        } else {
-          titleFetchHint.textContent = '抓不到標題，請手動輸入（尤其常見於 FB／IG／Threads）';
-        }
+        titleFetchHint.textContent = '抓不到標題，請手動輸入（尤其常見於 FB／IG／Threads）';
       }
     } catch (err) {
       titleFetchHint.textContent = '抓取標題失敗，請手動輸入';
@@ -396,14 +389,7 @@
         editTitleInput.value = data.title;
         editTitleFetchHint.textContent = '已自動帶入標題，可自行修改';
       } else {
-        const platformValue = editForm.elements['platform'].value;
-        const platformLabel = PLATFORM_LABEL[platformValue];
-        if (platformLabel) {
-          editTitleInput.value = platformLabel;
-          editTitleFetchHint.textContent = '抓不到標題，已自動帶入社群類型文字，可自行修改';
-        } else {
-          editTitleFetchHint.textContent = '抓不到標題，請手動輸入（尤其常見於 FB／IG／Threads）';
-        }
+        editTitleFetchHint.textContent = '抓不到標題，請手動輸入（尤其常見於 FB／IG／Threads）';
       }
     } catch (err) {
       editTitleFetchHint.textContent = '抓取標題失敗，請手動輸入';
