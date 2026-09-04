@@ -115,19 +115,27 @@ button{ font-family:inherit; cursor:pointer; }
 
 /* ---------- Board layout ---------- */
 .board{
-  display:grid;
-  grid-template-columns: 1fr 1px 1fr;
-  gap:0;
-  max-width:1100px;
+  display:flex;
+  flex-wrap:wrap;
+  gap:20px;
+  max-width:1400px;
   margin:0 auto;
   padding: 28px clamp(16px, 4vw, 48px) 80px;
 }
 
-.divider{ background:var(--line); }
+.column{
+  flex:1 1 300px;
+  min-width:280px;
+  border:1px solid var(--line);
+  border-radius:14px;
+  padding:20px 22px;
+  background:rgba(255,255,255,0.4);
+}
 
-.column{ padding: 4px 28px; }
-.column-report{ padding-left:0; }
-.column-share{ padding-right:0; }
+/* 電腦版由左到右：檢舉區 -> 按讚分享區 -> 小帳加好友區 */
+.column-report{ order:1; }
+.column-share{ order:2; }
+.column-friend{ order:3; }
 
 .column h2{
   display:flex;
@@ -145,9 +153,11 @@ button{ font-family:inherit; cursor:pointer; }
 }
 .dot-report{ background:var(--report); }
 .dot-share{ background:var(--share); }
+.dot-friend{ background:var(--honey-dark); }
 
 .column-report h2{ color:var(--report); }
 .column-share h2{ color:var(--share); }
+.column-friend h2{ color:var(--honey-dark); }
 
 .cardlist{ display:flex; flex-direction:column; gap:10px; }
 
@@ -398,9 +408,13 @@ button{ font-family:inherit; cursor:pointer; }
 /* ---------- Responsive ---------- */
 @media (max-width: 720px){
   .board{
-    grid-template-columns: 1fr;
+    flex-direction:column;
   }
-  .divider{ height:1px; width:100%; margin:20px 0; }
-  .column{ padding:0; }
-  .column-report, .column-share{ padding:0; }
+  .column{
+    padding:16px 18px;
+  }
+  /* 手機版由上到下：小帳加好友區 -> 檢舉區 -> 按讚分享區 */
+  .column-friend{ order:1; }
+  .column-report{ order:2; }
+  .column-share{ order:3; }
 }

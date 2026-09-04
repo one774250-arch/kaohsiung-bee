@@ -67,8 +67,10 @@
   // ---------- DOM refs ----------
   const reportList = document.getElementById('reportList');
   const shareList = document.getElementById('shareList');
+  const friendList = document.getElementById('friendList');
   const reportEmpty = document.getElementById('reportEmpty');
   const shareEmpty = document.getElementById('shareEmpty');
+  const friendEmpty = document.getElementById('friendEmpty');
 
   const normalActions = document.getElementById('normalActions');
   const editModeActions = document.getElementById('editModeActions');
@@ -115,7 +117,7 @@
   let deleteMode = false;
   let editMode = false;
   let selectedIds = new Set();
-  let currentData = { report: [], share: [] };
+  let currentData = { report: [], share: [], friend: [] };
 
   // ---------- 工具函式 ----------
   function toast(msg) {
@@ -146,6 +148,7 @@
   function render() {
     renderColumn(reportList, reportEmpty, currentData.report || []);
     renderColumn(shareList, shareEmpty, currentData.share || []);
+    renderColumn(friendList, friendEmpty, currentData.friend || []);
   }
 
   function renderColumn(container, emptyEl, items) {
@@ -164,10 +167,11 @@
 
     const creator = item.creator_name ? escapeHtml(item.creator_name) : '匿名';
     const platformLabel = PLATFORM_LABEL[item.platform] || item.platform;
-    const categoryLabel = CONTENT_TYPE_LABEL[item.category] || item.category;
+    const categoryLabel = CONTENT_TYPE_LABEL[item.category]; // 小帳加好友沒有對應值，不顯示這個標籤
     const titleText = item.title ? escapeHtml(item.title) : '（未取得標題，點擊查看內容）';
     const titleClass = item.title ? '' : ' no-title';
     const clickCount = item.click_count || 0;
+    const dateLabel = item.created_at ? 轉為民國日期(new Date(item.created_at)) : '';
 
     card.innerHTML = `
       <span class="seq-badge">${seq}</span>
@@ -178,9 +182,10 @@
           <a class="card-title${titleClass}" href="${escapeHtml(item.url)}" target="_blank" rel="noopener">${titleText}</a>
         </div>
         <p class="card-meta">
-          <span class="category-tag">${escapeHtml(categoryLabel)}</span>
+          ${categoryLabel ? `<span class="category-tag">${escapeHtml(categoryLabel)}</span>` : ''}
           <span class="platform-tag">${escapeHtml(platformLabel)}</span>
           <span>由 ${creator} 新增</span>
+          <span>${dateLabel}</span>
           <span class="click-count">點擊 ${clickCount} 次</span>
         </p>
       </div>

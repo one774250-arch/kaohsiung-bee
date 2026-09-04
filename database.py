@@ -5,13 +5,17 @@ import psycopg2.extras
 
 DATABASE_URL = os.environ.get("DATABASE_URL")
 
-ALLOWED_CATEGORY = {"report", "report_comment", "share", "share_comment"}
+ALLOWED_CATEGORY = {"report", "report_comment", "share", "share_comment", "friend_add"}
 ALLOWED_PLATFORM = {"ig", "fb", "youtube", "threads", "news", "other"}
 
 
 def 分類所屬看板(category):
-    """檢舉、檢舉留言 -> 檢舉區；按讚分享、按讚留言 -> 按讚分享區"""
-    return "report" if category in ("report", "report_comment") else "share"
+    """檢舉、檢舉留言 -> 檢舉區；按讚分享、按讚留言 -> 按讚分享區；小帳加好友 -> 小帳加好友區"""
+    if category in ("report", "report_comment"):
+        return "report"
+    if category in ("share", "share_comment"):
+        return "share"
+    return "friend"
 
 
 def 取得連線():
@@ -99,7 +103,7 @@ def 取得所有連結(device_id):
     cur.close()
     conn.close()
 
-    分組結果 = {"report": [], "share": []}
+    分組結果 = {"report": [], "share": [], "friend": []}
     for row in rows:
         item = dict(row)
         item["created_at"] = item["created_at"].isoformat() if item["created_at"] else None
