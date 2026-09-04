@@ -159,7 +159,24 @@ button{ font-family:inherit; cursor:pointer; }
 .column-share h2{ color:var(--share); }
 .column-friend h2{ color:var(--honey-dark); }
 
-.cardlist{ display:flex; flex-direction:column; gap:10px; }
+.cardlist{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+
+.expand-toggle{
+  display:block;
+  width:100%;
+  margin-top:10px;
+  padding:8px;
+  font-size:13px;
+  border-radius:8px;
+  border:1px solid var(--line);
+  background:var(--card);
+  color:var(--ink-soft);
+}
+.expand-toggle:hover{ background:#EFEADB; }
 
 .empty-hint{
   font-size:13.5px;
@@ -417,4 +434,21 @@ button{ font-family:inherit; cursor:pointer; }
   .column-friend{ order:1; }
   .column-report{ order:2; }
   .column-share{ order:3; }
+
+  /* 固定高度＋內部捲動，只在手機版生效；電腦版維持自然展開、不限高度 */
+  .cardlist{
+    max-height:480px;
+    overflow-y:auto;
+    padding-right:4px;
+    transition:max-height 0.2s ease;
+  }
+  .cardlist.expanded{
+    max-height:none;
+    overflow-y:visible;
+  }
+}
+
+@media (min-width: 721px){
+  /* 電腦版一律不顯示展開/收合按鈕，這個機制只為手機版設計 */
+  .expand-toggle{ display:none !important; }
 }

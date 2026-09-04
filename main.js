@@ -71,6 +71,28 @@
   const reportEmpty = document.getElementById('reportEmpty');
   const shareEmpty = document.getElementById('shareEmpty');
   const friendEmpty = document.getElementById('friendEmpty');
+  const reportExpandBtn = document.getElementById('reportExpandBtn');
+  const shareExpandBtn = document.getElementById('shareExpandBtn');
+  const friendExpandBtn = document.getElementById('friendExpandBtn');
+
+  // 固定框高度（px），跟 CSS 裡 .cardlist 的 max-height 保持一致
+  const COLLAPSE_HEIGHT = 480;
+  const expandedColumns = { report: false, share: false, friend: false };
+
+  // 這個固定框＋展開/收合機制只在手機版生效，電腦版維持不限高度自然展開；
+  // 只在頁面載入時判斷一次，不即時反應視窗縮放（例如電腦瀏覽器拖曳變窄）
+  const IS_MOBILE = window.matchMedia('(max-width: 720px)').matches;
+
+  function setupExpandToggle(listEl, btnEl, key) {
+    btnEl.addEventListener('click', () => {
+      expandedColumns[key] = !expandedColumns[key];
+      listEl.classList.toggle('expanded', expandedColumns[key]);
+      btnEl.textContent = expandedColumns[key] ? '收合' : '展開全部';
+    });
+  }
+  setupExpandToggle(reportList, reportExpandBtn, 'report');
+  setupExpandToggle(shareList, shareExpandBtn, 'share');
+  setupExpandToggle(friendList, friendExpandBtn, 'friend');
 
   const normalActions = document.getElementById('normalActions');
   const editModeActions = document.getElementById('editModeActions');
@@ -146,18 +168,32 @@
   }
 
   function render() {
-    renderColumn(reportList, reportEmpty, currentData.report || []);
-    renderColumn(shareList, shareEmpty, currentData.share || []);
-    renderColumn(friendList, friendEmpty, currentData.friend || []);
+    renderColumn(reportList, reportEmpty, reportExpandBtn, 'report', currentData.report || []);
+    renderColumn(shareList, shareEmpty, shareExpandBtn, 'share', currentData.share || []);
+    renderColumn(friendList, friendEmpty, friendExpandBtn, 'friend', currentData.friend || []);
   }
 
-  function renderColumn(container, emptyEl, items) {
+  function renderColumn(container, emptyEl, expandBtn, key, items) {
     container.innerHTML = '';
     emptyEl.hidden = items.length > 0;
 
     items.forEach((item, index) => {
       container.appendChild(renderCard(item, index + 1));
     });
+
+    if (!IS_MOBILE) {
+      expandBtn.hidden = true; // 電腦版不使用固定框機制，按鈕一律不顯示
+      return;
+    }
+
+    // 展開狀態要在每次重新渲染後重新套用，不然新增/刪除資料後會被重置成收合
+    container.classList.toggle('expanded', expandedColumns[key]);
+
+    // scrollHeight 反映的是「內容真實高度」，不受目前是否收合影響，
+    // 用這個數字跟固定框高度比較，就能判斷內容有沒有超出，決定要不要顯示按鈕
+    const 內容超出固定高度 = container.scrollHeight > COLLAPSE_HEIGHT + 4;
+    expandBtn.hidden = !內容超出固定高度;
+    expandBtn.textContent = expandedColumns[key] ? '收合' : '展開全部';
   }
 
   function renderCard(item, seq) {
