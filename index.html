@@ -45,27 +45,42 @@
     <button class="btn btn-danger" id="btnConfirmDelete">刪除選取項目</button>
     <button class="btn btn-ghost" id="btnCancelDelete">取消</button>
   </div>
+
+  <button class="btn btn-ghost" id="btnCollapseSection" hidden>← 收回</button>
 </header>
+
+<!-- 手機版三個大按鈕，點下去才會展開該區資料；電腦版不會顯示這個區塊 -->
+<div class="mobile-section-buttons" id="mobileButtons">
+  <button class="section-button section-button-friend" id="mobileBtnFriend">
+    小帳加好友區
+    <span class="today-badge" id="friendBadge" hidden>本日新增</span>
+  </button>
+  <button class="section-button section-button-report" id="mobileBtnReport">
+    檢舉區
+    <span class="today-badge" id="reportBadge" hidden>本日新增</span>
+  </button>
+  <button class="section-button section-button-share" id="mobileBtnShare">
+    按讚分享區
+    <span class="today-badge" id="shareBadge" hidden>本日新增</span>
+  </button>
+</div>
 
 <main class="board">
   <section class="column column-report" aria-labelledby="reportHeading">
     <h2 id="reportHeading"><span class="dot dot-report"></span>檢舉區</h2>
     <div class="cardlist" id="reportList"></div>
-    <button class="expand-toggle" id="reportExpandBtn" hidden>展開全部</button>
     <p class="empty-hint" id="reportEmpty" hidden>目前還沒有人新增檢舉項目。</p>
   </section>
 
   <section class="column column-share" aria-labelledby="shareHeading">
     <h2 id="shareHeading"><span class="dot dot-share"></span>按讚分享區</h2>
     <div class="cardlist" id="shareList"></div>
-    <button class="expand-toggle" id="shareExpandBtn" hidden>展開全部</button>
     <p class="empty-hint" id="shareEmpty" hidden>目前還沒有人新增分享項目。</p>
   </section>
 
   <section class="column column-friend" aria-labelledby="friendHeading">
     <h2 id="friendHeading"><span class="dot dot-friend"></span>小帳加好友區</h2>
     <div class="cardlist" id="friendList"></div>
-    <button class="expand-toggle" id="friendExpandBtn" hidden>展開全部</button>
     <p class="empty-hint" id="friendEmpty" hidden>目前還沒有人新增小帳加好友項目。</p>
   </section>
 </main>
