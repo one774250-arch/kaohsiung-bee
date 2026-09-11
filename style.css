@@ -525,11 +525,12 @@ button{ font-family:inherit; cursor:pointer; }
   font-size:12.5px;
   padding:6px 12px;
   border-radius:8px;
-  border:1px solid var(--line);
-  background:#EFEADB;
-  color:var(--ink);
+  border:1px solid #2159C7;
+  background:#2F6FED;
+  color:#fff;
+  font-weight:600;
 }
-.btn-example:hover{ background:#E6E0CC; }
+.btn-example:hover{ background:#2159C7; }
 
 .btn-icon{
   flex-shrink:0;
@@ -675,3 +676,51 @@ button{ font-family:inherit; cursor:pointer; }
   background:transparent;
 }
 .quick-phrase-delete:hover{ background:#E6D8C6; border-radius:5px; }
+
+.share-row-list{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  margin-top:10px;
+}
+
+.share-row{
+  display:flex;
+  align-items:flex-start;
+  gap:8px;
+}
+
+.share-row-move{
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+  flex-shrink:0;
+}
+.share-row-move .btn-icon{
+  width:26px;
+  height:20px;
+  font-size:10px;
+}
+.share-row-move .btn-icon:disabled{
+  opacity:0.3;
+  cursor:default;
+}
+.share-row-move .btn-icon:disabled:hover{ background:#fff; }
+
+.share-row-input{
+  flex:1 1 55%;
+  min-width:0;
+  margin-top:0;
+  resize:vertical;
+}
+
+.share-row-title{
+  flex:1 1 30%;
+  min-width:0;
+  font-size:12px;
+  color:var(--ink-soft);
+  padding:8px 4px;
+  word-break:break-word;
+}
+
+.share-row-delete{ flex-shrink:0; }

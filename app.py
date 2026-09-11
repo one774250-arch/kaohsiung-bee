@@ -1,9 +1,9 @@
 import os
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify, send_from_directory, render_template_string
 from flask_cors import CORS
 
 from database import (
-    初始化資料庫, 新增連結, 取得所有連結, 刪除連結, 標記已讀, 更新連結,
+    初始化資料庫, 新增連結, 取得所有連結, 刪除連結, 標記已讀, 更新連結, 取得連結網址,
     ALLOWED_CATEGORY, ALLOWED_PLATFORM,
     新增組別, 取得卡片組別, 刪除組別,
     新增留言範例列表, 取得組別範例, 更新留言範例, 刪除留言範例,
@@ -27,6 +27,62 @@ def 網址格式正確(url):
 
 def 留言設定密碼正確(data):
     return (data.get("password") or "") == COMMENT_SETTINGS_PASSWORD
+
+
+# 轉址頁面：分享出去的連結指向這裡，載入後先標記「這個裝置已點閱」，再跳轉到真正的外部網址。
+# 這個頁面本身沒有原始貼文的預覽資訊，所以分享到 LINE/Messenger 時不會顯示原始貼文的圖片標題，
+# 這是為了能追蹤點擊裝置所做的取捨（詳見前面跟使用者的討論）。
+GO_PAGE_TEMPLATE = """
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>正在前往...</title>
+<style>
+body{
+  font-family:sans-serif; display:flex; align-items:center; justify-content:center;
+  height:100vh; margin:0; background:#F5F1E6; color:#262320;
+}
+</style>
+</head>
+<body>
+<p>正在前往目的地網址…</p>
+<script>
+(function () {
+  var DEVICE_KEY = 'bee_device_id';
+  var deviceId = localStorage.getItem(DEVICE_KEY);
+  if (!deviceId) {
+    deviceId = crypto.randomUUID();
+    localStorage.setItem(DEVICE_KEY, deviceId);
+  }
+  var target = {{ target_url|tojson }};
+  var linkId = {{ link_id|tojson }};
+
+  function goNow() { window.location.replace(target); }
+
+  // 標記已讀最多等 3 秒，不管成功與否都會跳轉，避免使用者被卡在這個過場頁面
+  Promise.race([
+    fetch('/api/links/' + linkId + '/read', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ device_id: deviceId }),
+    }).catch(function () {}),
+    new Promise(function (resolve) { setTimeout(resolve, 3000); }),
+  ]).finally(goNow);
+})();
+</script>
+</body>
+</html>
+"""
+
+
+@app.route("/go/<int:link_id>")
+def 轉址並標記已讀(link_id):
+    url = 取得連結網址(link_id)
+    if not url:
+        return "找不到這個連結，可能已經被刪除", 404
+    return render_template_string(GO_PAGE_TEMPLATE, target_url=url, link_id=link_id)
 
 
 @app.route("/")

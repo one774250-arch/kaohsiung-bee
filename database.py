@@ -185,6 +185,16 @@ def 標記已讀(link_id, device_id):
     conn.close()
 
 
+def 取得連結網址(link_id):
+    conn = 取得連線()
+    cur = conn.cursor()
+    cur.execute("SELECT url FROM links WHERE id = %s", (link_id,))
+    row = cur.fetchone()
+    cur.close()
+    conn.close()
+    return row[0] if row else None
+
+
 # ==================== 留言範本功能 ====================
 
 def 新增組別(link_id, name):

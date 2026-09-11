@@ -361,15 +361,16 @@
   <div class="modal modal-large" role="dialog" aria-modal="true" aria-labelledby="shareComposeTitle">
     <h3 id="shareComposeTitle">分享組合</h3>
 
-    <label>
-      分享內容（已自動帶入選取卡片的網址，可自由編輯）
-      <textarea id="shareComposeText" rows="8"></textarea>
-    </label>
-    <div class="modal-actions" style="justify-content:flex-start;">
-      <button type="button" class="btn btn-primary" id="btnCopyShareCompose">複製</button>
+    <p class="template-manage-sub">已自動帶入選取卡片的網址（右側顯示對應標題），可自由編輯內容、上下調整順序</p>
+
+    <div id="shareRowList" class="share-row-list"></div>
+
+    <div class="modal-actions" style="justify-content:flex-start; gap:8px;">
+      <button type="button" class="btn btn-ghost" id="btnAddTextRow">＋ 新增文字行</button>
+      <button type="button" class="btn btn-primary" id="btnCopyShareCompose">複製全部內容</button>
     </div>
 
-    <h4 class="template-section-title">常用文字（點選插入到上方文字框）</h4>
+    <h4 class="template-section-title">常用文字（點選加到最下方）</h4>
     <div id="quickPhraseList" class="quick-phrase-list"></div>
 
     <div class="template-group-add" style="margin-top:12px;">

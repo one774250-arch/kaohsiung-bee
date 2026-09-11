@@ -190,12 +190,16 @@
   const btnCancelShare = document.getElementById('btnCancelShare');
 
   const shareComposeBackdrop = document.getElementById('shareComposeBackdrop');
-  const shareComposeText = document.getElementById('shareComposeText');
+  const shareRowList = document.getElementById('shareRowList');
+  const btnAddTextRow = document.getElementById('btnAddTextRow');
   const btnCopyShareCompose = document.getElementById('btnCopyShareCompose');
   const quickPhraseList = document.getElementById('quickPhraseList');
   const newQuickPhraseInput = document.getElementById('newQuickPhraseInput');
   const btnAddQuickPhrase = document.getElementById('btnAddQuickPhrase');
   const btnCloseShareCompose = document.getElementById('btnCloseShareCompose');
+
+  let shareComposeRows = []; // [{ id, url, title, isPlainText }]
+  let shareRowIdCounter = 0;
 
   // ---------- 工具函式 ----------
   function toast(msg) {
@@ -655,10 +659,62 @@
   });
 
   async function openShareCompose(items) {
-    shareComposeText.value = items.map(item => item.url).join('\n');
+    shareComposeRows = items.map(item => ({
+      id: ++shareRowIdCounter,
+      url: `${API_URL}/go/${item.id}`,
+      title: item.title || null,
+      isPlainText: false,
+    }));
+    renderShareRows();
     shareComposeBackdrop.hidden = false;
     await loadQuickPhrases();
   }
+
+  function renderShareRows() {
+    shareRowList.innerHTML = '';
+    shareComposeRows.forEach((row, index) => {
+      const rowEl = document.createElement('div');
+      rowEl.className = 'share-row';
+      rowEl.innerHTML = `
+        <div class="share-row-move">
+          <button type="button" class="btn-icon share-move-up" title="往上移" ${index === 0 ? 'disabled' : ''}>▲</button>
+          <button type="button" class="btn-icon share-move-down" title="往下移" ${index === shareComposeRows.length - 1 ? 'disabled' : ''}>▼</button>
+        </div>
+        <textarea rows="1" class="share-row-input">${escapeHtml(row.url)}</textarea>
+        <span class="share-row-title">${row.title ? escapeHtml(row.title) : (row.isPlainText ? '' : '（未取得標題）')}</span>
+        <button type="button" class="btn-icon share-row-delete" title="刪除這一行">🗑</button>
+      `;
+
+      rowEl.querySelector('.share-row-input').addEventListener('input', (e) => {
+        row.url = e.target.value; // 只更新資料，不重新渲染，避免打字時游標跳動
+      });
+      rowEl.querySelector('.share-move-up').addEventListener('click', () => 移動分享行(index, -1));
+      rowEl.querySelector('.share-move-down').addEventListener('click', () => 移動分享行(index, 1));
+      rowEl.querySelector('.share-row-delete').addEventListener('click', () => {
+        shareComposeRows.splice(index, 1);
+        renderShareRows();
+      });
+
+      shareRowList.appendChild(rowEl);
+    });
+  }
+
+  function 移動分享行(index, delta) {
+    const targetIndex = index + delta;
+    if (targetIndex < 0 || targetIndex >= shareComposeRows.length) return;
+    // 交換兩行的順序；因為標題是跟著該行的資料物件一起移動，不會脫勾
+    const temp = shareComposeRows[index];
+    shareComposeRows[index] = shareComposeRows[targetIndex];
+    shareComposeRows[targetIndex] = temp;
+    renderShareRows();
+  }
+
+  btnAddTextRow.addEventListener('click', () => {
+    shareComposeRows.push({ id: ++shareRowIdCounter, url: '', title: null, isPlainText: true });
+    renderShareRows();
+    const inputs = shareRowList.querySelectorAll('.share-row-input');
+    if (inputs.length) inputs[inputs.length - 1].focus();
+  });
 
   async function loadQuickPhrases() {
     quickPhraseList.innerHTML = '載入中…';
@@ -685,7 +741,11 @@
         <span class="quick-phrase-text">${escapeHtml(p.content)}</span>
         <button type="button" class="btn-icon quick-phrase-delete" title="刪除">✕</button>
       `;
-      chip.querySelector('.quick-phrase-text').addEventListener('click', () => 插入常用文字(p.content));
+      chip.querySelector('.quick-phrase-text').addEventListener('click', () => {
+        // 常用文字以新增一行文字行的方式加到清單最下方
+        shareComposeRows.push({ id: ++shareRowIdCounter, url: p.content, title: null, isPlainText: true });
+        renderShareRows();
+      });
       chip.querySelector('.quick-phrase-delete').addEventListener('click', async (e) => {
         e.stopPropagation();
         if (!confirm('確定刪除這則常用文字嗎？')) return;
@@ -699,16 +759,6 @@
       });
       quickPhraseList.appendChild(chip);
     });
-  }
-
-  function 插入常用文字(text) {
-    const ta = shareComposeText;
-    const start = ta.selectionStart ?? ta.value.length;
-    const end = ta.selectionEnd ?? ta.value.length;
-    ta.value = ta.value.slice(0, start) + text + ta.value.slice(end);
-    const newPos = start + text.length;
-    ta.focus();
-    ta.selectionStart = ta.selectionEnd = newPos;
   }
 
   btnAddQuickPhrase.addEventListener('click', async () => {
@@ -737,8 +787,9 @@
   });
 
   btnCopyShareCompose.addEventListener('click', async () => {
+    const combined = shareComposeRows.map(row => row.url).join('\n');
     try {
-      await navigator.clipboard.writeText(shareComposeText.value);
+      await navigator.clipboard.writeText(combined);
       toast('已複製到剪貼簿');
     } catch (err) {
       toast('複製失敗，請手動選取文字複製');
