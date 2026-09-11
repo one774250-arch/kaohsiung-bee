@@ -362,6 +362,10 @@ button{ font-family:inherit; cursor:pointer; }
   z-index:100;
 }
 
+/* 複製確認視窗可能疊在「留言範例」視窗上面開啟，固定給它較高的疊層順序，
+   確保一定顯示在最上層，不受 HTML 裡先後順序影響 */
+#copyConfirmBackdrop{ z-index:150; }
+
 .modal{
   background:#fff;
   border-radius:14px;
