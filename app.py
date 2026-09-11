@@ -3,7 +3,7 @@ from flask import Flask, request, jsonify, send_from_directory, render_template_
 from flask_cors import CORS
 
 from database import (
-    初始化資料庫, 新增連結, 取得所有連結, 刪除連結, 標記已讀, 更新連結, 取得連結網址, 取得單筆連結,
+    初始化資料庫, 新增連結, 取得所有連結, 刪除連結, 標記已讀, 更新連結, 取得單筆連結,
     ALLOWED_CATEGORY, ALLOWED_PLATFORM,
     新增組別, 取得卡片組別, 刪除組別,
     新增留言範例列表, 取得組別範例, 更新留言範例, 刪除留言範例,
@@ -38,7 +38,10 @@ GO_PAGE_TEMPLATE = """
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>正在前往...</title>
+<title>{{ title }}</title>
+<meta property="og:title" content="{{ title }}">
+<meta property="og:description" content="來自高雄小蜜蜂共用連結看板">
+<meta property="og:type" content="website">
 <style>
 body{
   font-family:sans-serif; display:flex; align-items:center; justify-content:center;
@@ -79,17 +82,28 @@ body{
 
 @app.route("/go/<int:link_id>")
 def 轉址並標記已讀(link_id):
-    url = 取得連結網址(link_id)
-    if not url:
+    link = 取得單筆連結(link_id)
+    if not link:
         return "找不到這個連結，可能已經被刪除", 404
-    return render_template_string(GO_PAGE_TEMPLATE, target_url=url, link_id=link_id)
+    title = link["title"] or "查看內容"
+    return render_template_string(
+        GO_PAGE_TEMPLATE, target_url=link["url"], link_id=link_id, title=title
+    )
 
 
 @app.route("/card/<int:link_id>")
 def 卡片頁面(link_id):
     # 這是有留言範例的卡片，分享出去時用的簡化頁面，只會顯示這一張卡片本身，
-    # 不會露出整個看板；卡片編號直接由前端 JS 從網址路徑自己解析，這裡固定回同一份靜態頁面即可
-    return send_from_directory(".", "card.html")
+    # 不會露出整個看板。這裡改成動態渲染，是為了讓分享預覽（LINE、Messenger 等）
+    # 能抓到卡片真正的標題，而不是頁面「載入中」那些過場文字
+    link = 取得單筆連結(link_id)
+    if not link:
+        return "找不到這張卡片，可能已經被刪除", 404
+
+    title = link["title"] or "查看內容"
+    with open("card.html", "r", encoding="utf-8") as f:
+        template = f.read()
+    return render_template_string(template, title=title)
 
 
 @app.route("/")
