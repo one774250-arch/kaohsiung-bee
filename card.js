@@ -39,6 +39,7 @@
 
   let linkData = null;
   let currentExample = null;
+  let currentExampleConfirmed = false; // 是否已經按過「前往網址」，鎖定為真正已使用，不會再被釋放
 
   function toast(msg) {
     toastEl.textContent = msg;
@@ -55,6 +56,11 @@
 
   async function 釋放目前範例() {
     if (!currentExample) return;
+    if (currentExampleConfirmed) { // 已鎖定，維持已使用狀態，不釋放
+      currentExample = null;
+      currentExampleConfirmed = false;
+      return;
+    }
     const id = currentExample.id;
     currentExample = null;
     try {
@@ -72,6 +78,7 @@
       const data = await res.json();
       if (data) {
         currentExample = data;
+        currentExampleConfirmed = false;
         exampleText.textContent = data.content;
       } else {
         currentExample = null;
@@ -93,6 +100,7 @@
 
   btnGotoUrl.addEventListener('click', async () => {
     if (!linkData) return;
+    if (currentExample) currentExampleConfirmed = true; // 按下前往網址，這句話真正確定被使用掉
     window.open(linkData.url, '_blank', 'noopener');
     try {
       await fetch(`${API_URL}/api/links/${linkData.id}/read`, {
@@ -134,9 +142,10 @@
     // 複製後維持顯示原本這句，不自動重選；要換下一句需要使用者自己按「重選」
   });
 
-  // 離開頁面時盡量把目前搶佔的範例釋放掉（最佳努力，不保證一定成功）
+  // 離開頁面時盡量把目前搶佔的範例釋放掉（最佳努力，不保證一定成功）；
+  // 如果已經按過「前往網址」鎖定了，就不釋放，維持已使用狀態
   window.addEventListener('pagehide', () => {
-    if (currentExample) {
+    if (currentExample && !currentExampleConfirmed) {
       try {
         navigator.sendBeacon(
           `${API_URL}/api/comment-templates/${currentExample.id}/release`,

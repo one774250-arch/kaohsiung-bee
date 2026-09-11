@@ -179,6 +179,7 @@
 
   let exampleLink = null;             // 目前開啟「留言範例」彈窗的卡片
   let currentExample = null;          // 目前彈窗顯示的範例 { id, content } 或 null
+  let currentExampleConfirmed = false; // 是否已經按過「前往網址」，鎖定為真正已使用，不會再被釋放
 
   // ---------- 分享功能：狀態 ----------
   let shareMode = false; // 是否處於「分享：選取卡片」模式
@@ -1152,9 +1153,15 @@
 
   // ---------- 卡片上的「留言範例」彈窗（公開功能，不需密碼） ----------
   // 範例一旦被抽到顯示出來，後端就會立刻標記為已使用（搶佔），避免多人同時抽到同一句；
-  // 如果使用者重選、換組別、或關閉視窗卻沒有真的複製，就要把它釋放回去，才不會白白浪費掉
+  // 如果使用者重選、換組別、或關閉視窗卻沒有按下「前往網址」，就要把它釋放回去，才不會白白浪費掉；
+  // 但只要按過一次「前往網址」，就代表這句話真正被拿去用了，之後就永久鎖定為已使用，不會再被釋放
   async function 釋放目前範例() {
     if (!currentExample) return;
+    if (currentExampleConfirmed) { // 已鎖定，維持已使用狀態，不釋放
+      currentExample = null;
+      currentExampleConfirmed = false;
+      return;
+    }
     const id = currentExample.id;
     currentExample = null;
     try {
@@ -1167,6 +1174,7 @@
   async function openExampleModal(item) {
     exampleLink = item;
     currentExample = null;
+    currentExampleConfirmed = false;
     exampleText.textContent = '載入中…';
     exampleBackdrop.hidden = false;
 
@@ -1187,13 +1195,14 @@
   }
 
   async function loadRandomExample(groupId) {
-    await 釋放目前範例(); // 換一句之前，先把手上這句還給資源池
+    await 釋放目前範例(); // 換一句之前，先處理手上這句（鎖定的話維持已使用，否則還給資源池）
     exampleText.textContent = '載入中…';
     try {
       const res = await fetch(`${API_URL}/api/comment-templates/random?group_id=${groupId}`);
       const data = await res.json();
       if (data) {
         currentExample = data;
+        currentExampleConfirmed = false;
         exampleText.textContent = data.content;
       } else {
         currentExample = null;
@@ -1215,6 +1224,7 @@
 
   btnGotoUrl.addEventListener('click', () => {
     if (!exampleLink) return;
+    if (currentExample) currentExampleConfirmed = true; // 按下前往網址，這句話真正確定被使用掉
     window.open(exampleLink.url, '_blank', 'noopener');
     markRead(exampleLink);
   });
@@ -1250,7 +1260,7 @@
   });
 
   btnCloseExample.addEventListener('click', async () => {
-    await 釋放目前範例(); // 關閉視窗卻沒複製，把這句還給資源池
+    await 釋放目前範例(); // 沒按過前往網址就關閉視窗，把這句還給資源池；按過的話會維持已使用
     exampleBackdrop.hidden = true;
     exampleLink = null;
   });
