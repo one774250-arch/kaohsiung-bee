@@ -659,12 +659,20 @@
     openShareCompose(items);
   });
 
+  function 產生隨機快取參數() {
+    // 每次分享都用一個全新的參數，讓 LINE 等平台的預覽機器人把它當成新網址重新抓取，
+    // 不會沿用之前抓過的舊快取（例如標題還沒修好之前抓到的版本）
+    return Math.random().toString(36).slice(2, 8) + Date.now().toString(36);
+  }
+
   async function openShareCompose(items) {
     shareComposeRows = items.map(item => ({
       id: ++shareRowIdCounter,
       // 有留言範例的卡片，導向卡片獨立頁面（裡面可以直接使用留言範例功能）；
       // 沒有的話維持原本的轉址頁面（先記錄已點閱，再跳轉外部網址）
-      url: item.has_comment_templates ? `${API_URL}/card/${item.id}` : `${API_URL}/go/${item.id}`,
+      url: item.has_comment_templates
+        ? `${API_URL}/card/${item.id}?v=${產生隨機快取參數()}`
+        : `${API_URL}/go/${item.id}?v=${產生隨機快取參數()}`,
       title: item.title || null,
       isPlainText: false,
     }));
