@@ -43,6 +43,25 @@ def 初始化資料庫():
     cur.execute("ALTER TABLE links DROP CONSTRAINT IF EXISTS links_category_check")
     cur.execute("ALTER TABLE links ADD COLUMN IF NOT EXISTS is_priority BOOLEAN NOT NULL DEFAULT FALSE")
 
+    # 留言範本功能：組別、留言範例兩張表
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS comment_groups (
+            id SERIAL PRIMARY KEY,
+            link_id INTEGER NOT NULL REFERENCES links(id) ON DELETE CASCADE,
+            name TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT NOW()
+        )
+    """)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS comment_templates (
+            id SERIAL PRIMARY KEY,
+            group_id INTEGER NOT NULL REFERENCES comment_groups(id) ON DELETE CASCADE,
+            content TEXT NOT NULL,
+            is_used BOOLEAN NOT NULL DEFAULT FALSE,
+            created_at TIMESTAMP DEFAULT NOW()
+        )
+    """)
+
     cur.execute("""
         CREATE TABLE IF NOT EXISTS link_reads (
             id SERIAL PRIMARY KEY,
@@ -87,7 +106,8 @@ def 取得所有連結(device_id):
         SELECT l.id, l.category, l.platform, l.url, l.title, l.creator_name, l.created_at,
                l.is_priority,
                CASE WHEN r.id IS NULL THEN FALSE ELSE TRUE END AS is_read,
-               COALESCE(rc.click_count, 0) AS click_count
+               COALESCE(rc.click_count, 0) AS click_count,
+               CASE WHEN cg.link_id IS NULL THEN FALSE ELSE TRUE END AS has_comment_templates
         FROM links l
         LEFT JOIN link_reads r
           ON r.link_id = l.id AND r.device_id = %s
@@ -96,6 +116,9 @@ def 取得所有連結(device_id):
             FROM link_reads
             GROUP BY link_id
         ) rc ON rc.link_id = l.id
+        LEFT JOIN (
+            SELECT DISTINCT link_id FROM comment_groups
+        ) cg ON cg.link_id = l.id
         ORDER BY l.created_at DESC
     """, (device_id,))
 
@@ -151,3 +174,133 @@ def 標記已讀(link_id, device_id):
     conn.commit()
     cur.close()
     conn.close()
+
+
+# ==================== 留言範本功能 ====================
+
+def 新增組別(link_id, name):
+    conn = 取得連線()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute("""
+        INSERT INTO comment_groups (link_id, name)
+        VALUES (%s, %s)
+        RETURNING id, link_id, name, created_at
+    """, (link_id, name))
+    row = cur.fetchone()
+    conn.commit()
+    cur.close()
+    conn.close()
+    return dict(row)
+
+
+def 取得卡片組別(link_id):
+    """回傳這張卡片底下所有組別，附上總範例數與尚未使用的範例數"""
+    conn = 取得連線()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute("""
+        SELECT g.id, g.link_id, g.name, g.created_at,
+               COUNT(t.id) AS total_count,
+               COUNT(t.id) FILTER (WHERE t.is_used = FALSE) AS unused_count
+        FROM comment_groups g
+        LEFT JOIN comment_templates t ON t.group_id = g.id
+        WHERE g.link_id = %s
+        GROUP BY g.id
+        ORDER BY g.created_at ASC
+    """, (link_id,))
+    rows = cur.fetchall()
+    cur.close()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def 刪除組別(group_id):
+    conn = 取得連線()
+    cur = conn.cursor()
+    cur.execute("DELETE FROM comment_groups WHERE id = %s", (group_id,))
+    影響筆數 = cur.rowcount
+    conn.commit()
+    cur.close()
+    conn.close()
+    return 影響筆數 > 0
+
+
+def 新增留言範例列表(group_id, contents):
+    """批次新增多則留言範例（文字分割匯入用）"""
+    conn = 取得連線()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    新增結果 = []
+    for text in contents:
+        cur.execute("""
+            INSERT INTO comment_templates (group_id, content)
+            VALUES (%s, %s)
+            RETURNING id, group_id, content, is_used, created_at
+        """, (group_id, text))
+        新增結果.append(dict(cur.fetchone()))
+    conn.commit()
+    cur.close()
+    conn.close()
+    return 新增結果
+
+
+def 取得組別範例(group_id):
+    conn = 取得連線()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute("""
+        SELECT id, group_id, content, is_used, created_at
+        FROM comment_templates
+        WHERE group_id = %s
+        ORDER BY created_at ASC
+    """, (group_id,))
+    rows = cur.fetchall()
+    cur.close()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def 更新留言範例(template_id, content):
+    conn = 取得連線()
+    cur = conn.cursor()
+    cur.execute("UPDATE comment_templates SET content = %s WHERE id = %s", (content, template_id))
+    影響筆數 = cur.rowcount
+    conn.commit()
+    cur.close()
+    conn.close()
+    return 影響筆數 > 0
+
+
+def 刪除留言範例(template_id):
+    conn = 取得連線()
+    cur = conn.cursor()
+    cur.execute("DELETE FROM comment_templates WHERE id = %s", (template_id,))
+    影響筆數 = cur.rowcount
+    conn.commit()
+    cur.close()
+    conn.close()
+    return 影響筆數 > 0
+
+
+def 取得隨機未使用範例(group_id):
+    conn = 取得連線()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute("""
+        SELECT id, group_id, content
+        FROM comment_templates
+        WHERE group_id = %s AND is_used = FALSE
+        ORDER BY RANDOM()
+        LIMIT 1
+    """, (group_id,))
+    row = cur.fetchone()
+    cur.close()
+    conn.close()
+    return dict(row) if row else None
+
+
+def 標記範例已使用(template_id):
+    conn = 取得連線()
+    cur = conn.cursor()
+    cur.execute("UPDATE comment_templates SET is_used = TRUE WHERE id = %s", (template_id,))
+    影響筆數 = cur.rowcount
+    conn.commit()
+    cur.close()
+    conn.close()
+    return 影響筆數 > 0

@@ -33,6 +33,10 @@
       <svg viewBox="0 0 20 20" class="icon"><path d="M4 6h12M8 6V4h4v2M6 6l1 10h6l1-10"/></svg>
       刪除
     </button>
+    <button class="btn btn-ghost" id="btnCommentSettings">
+      <svg viewBox="0 0 20 20" class="icon"><path d="M3 4h14v9H7l-4 4V4z"/></svg>
+      留言設定
+    </button>
   </div>
 
   <div class="topbar-actions" id="editModeActions" hidden>
@@ -44,6 +48,20 @@
     <span class="select-count" id="selectCount">已選取 0 筆</span>
     <button class="btn btn-danger" id="btnConfirmDelete">刪除選取項目</button>
     <button class="btn btn-ghost" id="btnCancelDelete">取消</button>
+  </div>
+
+  <!-- 留言設定：密碼通過後顯示的管理選單 -->
+  <div class="topbar-actions" id="commentMenuActions" hidden>
+    <button class="btn btn-ghost" id="btnCommentAdd">新增</button>
+    <button class="btn btn-ghost" id="btnCommentEdit">修改</button>
+    <button class="btn btn-ghost" id="btnCommentDelete">刪除</button>
+    <button class="btn btn-ghost" id="btnCommentSettingsClose">完成</button>
+  </div>
+
+  <!-- 留言設定：選取卡片模式 -->
+  <div class="topbar-actions" id="commentSelectActions" hidden>
+    <span class="select-count">請點選要設定留言的卡片</span>
+    <button class="btn btn-ghost" id="btnCancelCommentSelect">取消</button>
   </div>
 
   <button class="btn btn-ghost" id="btnCollapseSection" hidden>← 收回</button>
@@ -226,6 +244,106 @@
     <div class="modal-actions">
       <button type="button" class="btn btn-ghost" id="btnCancelConfirm">取消</button>
       <button type="button" class="btn btn-danger" id="btnDoDelete">刪除</button>
+    </div>
+  </div>
+</div>
+
+<!-- 留言設定：密碼輸入 Modal -->
+<div class="modal-backdrop" id="commentPasswordBackdrop" hidden>
+  <div class="modal modal-small" role="dialog" aria-modal="true" aria-labelledby="commentPasswordTitle">
+    <h3 id="commentPasswordTitle">留言設定</h3>
+    <form id="commentPasswordForm">
+      <label>
+        請輸入密碼
+        <input type="password" id="commentPasswordInput" autocomplete="off" required>
+      </label>
+      <p class="form-error" id="commentPasswordError" hidden></p>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" id="btnCancelCommentPassword">取消</button>
+        <button type="submit" class="btn btn-primary">確認</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- 留言範本管理 Modal（選好卡片後開啟） -->
+<div class="modal-backdrop" id="templateManageBackdrop" hidden>
+  <div class="modal modal-large" role="dialog" aria-modal="true" aria-labelledby="templateManageTitle">
+    <h3 id="templateManageTitle">留言範本管理</h3>
+    <p class="template-manage-sub" id="templateManageLinkTitle"></p>
+
+    <div class="template-groups-row">
+      <div class="template-group-list" id="templateGroupList"></div>
+      <div class="template-group-add">
+        <input type="text" id="newGroupNameInput" placeholder="新組別名稱">
+        <button type="button" class="btn btn-ghost" id="btnAddGroup">＋ 新增組別</button>
+      </div>
+    </div>
+
+    <div id="templateGroupDetail" hidden>
+      <h4 class="template-section-title">貼上原文，自動分割新增範例</h4>
+      <textarea id="rawTextInput" rows="4" placeholder="貼上一大段文字，會依換行自動拆成好幾則"></textarea>
+      <div class="modal-actions" style="justify-content:flex-start;">
+        <button type="button" class="btn btn-ghost" id="btnSplitText">分割</button>
+      </div>
+      <div id="splitResultList" class="split-result-list"></div>
+      <div class="modal-actions" style="justify-content:flex-start;" id="splitConfirmRow" hidden>
+        <button type="button" class="btn btn-primary" id="btnConfirmAddSplit">確認新增到目前組別</button>
+      </div>
+
+      <h4 class="template-section-title">現有範例（可直接編輯／刪除）</h4>
+      <div id="existingTemplateList" class="existing-template-list"></div>
+      <p class="empty-hint" id="existingTemplateEmpty" hidden>這個組別還沒有任何範例。</p>
+      <div class="modal-actions" style="justify-content:flex-start;">
+        <button type="button" class="btn btn-primary" id="btnSaveTemplateEdits">儲存修改</button>
+      </div>
+    </div>
+
+    <p class="form-error" id="templateManageError" hidden></p>
+
+    <div class="modal-actions">
+      <button type="button" class="btn btn-ghost" id="btnCloseTemplateManage">關閉</button>
+    </div>
+  </div>
+</div>
+
+<!-- 留言範例：複製確認 Modal -->
+<div class="modal-backdrop" id="copyConfirmBackdrop" hidden>
+  <div class="modal modal-small" role="dialog" aria-modal="true" aria-labelledby="copyConfirmTitle">
+    <h3 id="copyConfirmTitle">確認複製這句留言？</h3>
+    <p class="confirm-text" id="copyConfirmText"></p>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-ghost" id="btnCancelCopy">取消</button>
+      <button type="button" class="btn btn-primary" id="btnConfirmCopy">確認</button>
+    </div>
+  </div>
+</div>
+
+<!-- 卡片上的「留言範例」彈窗 -->
+<div class="modal-backdrop" id="exampleBackdrop" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="exampleTitle">
+    <h3 id="exampleTitle">留言範例</h3>
+
+    <label>
+      組別
+      <select id="exampleGroupSelect"></select>
+    </label>
+
+    <label>
+      範例
+      <div class="example-field-row">
+        <div class="example-text" id="exampleText">（請選擇組別）</div>
+        <button type="button" class="btn-icon" id="btnRerollExample" title="重選">🔀</button>
+      </div>
+    </label>
+
+    <div class="modal-actions" style="justify-content:space-between;">
+      <button type="button" class="btn btn-ghost" id="btnGotoUrl">前往網址</button>
+      <button type="button" class="btn btn-primary" id="btnCopyExample">複製</button>
+    </div>
+
+    <div class="modal-actions">
+      <button type="button" class="btn btn-ghost" id="btnCloseExample">關閉</button>
     </div>
   </div>
 </div>

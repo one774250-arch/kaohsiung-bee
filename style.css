@@ -371,11 +371,46 @@ button{ font-family:inherit; cursor:pointer; }
   box-shadow:0 12px 30px rgba(0,0,0,0.18);
 }
 .modal-small{ max-width:360px; }
+.modal-large{
+  max-width:640px;
+  max-height:85vh;
+  overflow-y:auto;
+}
 
 .modal h3{
   font-size:18px;
   margin-bottom:18px;
   color:var(--ink);
+}
+
+.modal label{
+  display:block;
+  font-size:13px;
+  color:var(--ink-soft);
+  margin-bottom:14px;
+}
+
+.modal input:not([type="checkbox"]),
+.modal select,
+.modal textarea{
+  display:block;
+  width:100%;
+  margin-top:6px;
+  border:1px solid var(--line);
+  border-radius:8px;
+  padding:8px 10px;
+  font-size:14px;
+  font-family:inherit;
+  color:var(--ink);
+  background:#fff;
+  box-sizing:border-box;
+}
+.modal textarea{ resize:vertical; }
+.modal input:not([type="checkbox"]):focus,
+.modal select:focus,
+.modal textarea:focus{
+  outline:2px solid var(--honey);
+  outline-offset:1px;
 }
 
 #addForm label{
@@ -478,4 +513,116 @@ button{ font-family:inherit; cursor:pointer; }
   /* 三大按鈕、收回按鈕只為手機版設計，電腦版一律不顯示 */
   .mobile-section-buttons{ display:none !important; }
   #btnCollapseSection{ display:none !important; }
+}
+
+/* ---------- 留言範本功能 ---------- */
+.btn-example{
+  margin-top:8px;
+  font-size:12.5px;
+  padding:6px 12px;
+  border-radius:8px;
+  border:1px solid var(--line);
+  background:#EFEADB;
+  color:var(--ink);
+}
+.btn-example:hover{ background:#E6E0CC; }
+
+.btn-icon{
+  flex-shrink:0;
+  width:32px;
+  height:32px;
+  padding:0;
+  border-radius:8px;
+  border:1px solid var(--line);
+  background:#fff;
+  font-size:15px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+.btn-icon:hover{ background:#EFEADB; }
+
+.template-manage-sub{
+  font-size:13px;
+  color:var(--ink-soft);
+  margin:-10px 0 18px;
+}
+
+.template-groups-row{
+  display:flex;
+  flex-wrap:wrap;
+  gap:16px;
+  margin-bottom:18px;
+}
+
+.template-group-list{
+  flex:1 1 280px;
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+}
+
+.group-row{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  padding:8px 10px;
+  border:1px solid var(--line);
+  border-radius:8px;
+  background:#fff;
+  cursor:pointer;
+}
+.group-row.selected{ border-color:var(--honey-dark); background:#FBF3E2; }
+.group-name{ font-size:13.5px; font-weight:600; color:var(--ink); }
+.group-count{ font-size:11.5px; color:var(--ink-soft); flex:1; }
+.group-delete{ width:26px; height:26px; font-size:12px; }
+
+.template-group-add{
+  flex:1 1 220px;
+  display:flex;
+  gap:8px;
+  align-items:flex-start;
+}
+.template-group-add input{ margin-top:0; }
+.template-group-add button{ white-space:nowrap; }
+
+.template-section-title{
+  font-size:14px;
+  font-weight:700;
+  color:var(--ink);
+  margin:20px 0 10px;
+}
+
+.split-result-list,
+.existing-template-list{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  margin-top:10px;
+}
+
+.template-row{
+  display:flex;
+  gap:8px;
+  align-items:flex-start;
+}
+.template-row textarea{ margin-top:0; flex:1; }
+
+.example-field-row{
+  display:flex;
+  gap:8px;
+  align-items:center;
+  margin-top:6px;
+}
+.example-text{
+  flex:1;
+  min-height:60px;
+  padding:10px 12px;
+  border:1px solid var(--line);
+  border-radius:8px;
+  background:#F8F6EE;
+  color:var(--ink);
+  font-size:14px;
+  display:flex;
+  align-items:center;
 }

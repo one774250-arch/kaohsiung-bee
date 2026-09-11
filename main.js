@@ -169,6 +169,17 @@
   let selectedIds = new Set();
   let currentData = { report: [], share: [], friend: [] };
 
+  // ---------- 留言範本功能：狀態 ----------
+  let commentSettingsPassword = null; // 通過驗證後暫存密碼，關閉留言設定面板後清空
+  let commentSelectMode = false;      // 是否處於「留言設定：選取卡片」模式
+  let managingLink = null;            // 目前在範本管理畫面裡編輯的卡片
+  let managingGroups = [];            // 該卡片的組別清單
+  let selectedGroupId = null;         // 範本管理畫面裡目前選中的組別
+  let existingTemplates = [];         // 目前選中組別的既有範例（管理畫面用）
+
+  let exampleLink = null;             // 目前開啟「留言範例」彈窗的卡片
+  let currentExample = null;          // 目前彈窗顯示的範例 { id, content } 或 null
+
   // ---------- 工具函式 ----------
   function toast(msg) {
     toastEl.textContent = msg;
@@ -216,7 +227,9 @@
 
   function renderCard(item, seq) {
     const card = document.createElement('div');
-    card.className = 'card' + (selectedIds.has(item.id) ? ' selected' : '') + (editMode ? ' editable' : '');
+    card.className = 'card'
+      + (selectedIds.has(item.id) ? ' selected' : '')
+      + (editMode || commentSelectMode ? ' editable' : '');
     card.dataset.id = item.id;
 
     const creator = item.creator_name ? escapeHtml(item.creator_name) : '匿名';
@@ -226,6 +239,7 @@
     const titleClass = item.title ? '' : ' no-title';
     const clickCount = item.click_count || 0;
     const dateLabel = item.created_at ? 轉為民國日期(new Date(item.created_at)) : '';
+    const 一般瀏覽模式 = !deleteMode && !editMode && !commentSelectMode;
 
     card.innerHTML = `
       <span class="seq-badge">${seq}</span>
@@ -242,12 +256,14 @@
           <span>${dateLabel}</span>
           <span class="click-count">點擊 ${clickCount} 次</span>
         </p>
+        ${(一般瀏覽模式 && item.has_comment_templates) ? '<button type="button" class="btn-example">💬 留言範例</button>' : ''}
       </div>
-      ${(deleteMode || editMode) ? '' : `<span class="read-tag ${item.is_read ? 'read' : 'unread'}">${item.is_read ? '已點閱' : '尚未點閱'}</span>`}
+      ${(deleteMode || editMode || commentSelectMode) ? '' : `<span class="read-tag ${item.is_read ? 'read' : 'unread'}">${item.is_read ? '已點閱' : '尚未點閱'}</span>`}
     `;
 
     const link = card.querySelector('.card-title');
     const checkbox = card.querySelector('.card-check');
+    const exampleBtn = card.querySelector('.btn-example');
 
     if (deleteMode) {
       // 刪除模式下，只有核取方塊本身可以切換勾選，點卡片其他地方不會有反應
@@ -262,8 +278,21 @@
         if (e.target === link) return; // 已由上面的 link 監聽器處理，避免重複觸發
         openEditModal(item);
       });
+    } else if (commentSelectMode) {
+      // 留言設定：選取卡片模式，點卡片直接開啟該卡片的範本管理畫面
+      link.addEventListener('click', (e) => {
+        e.preventDefault();
+        selectCardForCommentSettings(item);
+      });
+      card.addEventListener('click', (e) => {
+        if (e.target === link) return;
+        selectCardForCommentSettings(item);
+      });
     } else {
       link.addEventListener('click', () => markRead(item));
+      if (exampleBtn) {
+        exampleBtn.addEventListener('click', () => openExampleModal(item));
+      }
     }
 
     return card;
@@ -562,6 +591,451 @@
     } finally {
       btnDoDelete.disabled = false;
     }
+  });
+
+  // ==================== 留言範本功能 ====================
+
+  // ---------- DOM refs ----------
+  const btnCommentSettings = document.getElementById('btnCommentSettings');
+  const commentMenuActions = document.getElementById('commentMenuActions');
+  const commentSelectActions = document.getElementById('commentSelectActions');
+  const btnCommentAdd = document.getElementById('btnCommentAdd');
+  const btnCommentEdit = document.getElementById('btnCommentEdit');
+  const btnCommentDelete = document.getElementById('btnCommentDelete');
+  const btnCommentSettingsClose = document.getElementById('btnCommentSettingsClose');
+  const btnCancelCommentSelect = document.getElementById('btnCancelCommentSelect');
+
+  const commentPasswordBackdrop = document.getElementById('commentPasswordBackdrop');
+  const commentPasswordForm = document.getElementById('commentPasswordForm');
+  const commentPasswordInput = document.getElementById('commentPasswordInput');
+  const commentPasswordError = document.getElementById('commentPasswordError');
+  const btnCancelCommentPassword = document.getElementById('btnCancelCommentPassword');
+
+  const templateManageBackdrop = document.getElementById('templateManageBackdrop');
+  const templateManageLinkTitle = document.getElementById('templateManageLinkTitle');
+  const templateGroupList = document.getElementById('templateGroupList');
+  const newGroupNameInput = document.getElementById('newGroupNameInput');
+  const btnAddGroup = document.getElementById('btnAddGroup');
+  const templateGroupDetail = document.getElementById('templateGroupDetail');
+  const rawTextInput = document.getElementById('rawTextInput');
+  const btnSplitText = document.getElementById('btnSplitText');
+  const splitResultList = document.getElementById('splitResultList');
+  const splitConfirmRow = document.getElementById('splitConfirmRow');
+  const btnConfirmAddSplit = document.getElementById('btnConfirmAddSplit');
+  const existingTemplateList = document.getElementById('existingTemplateList');
+  const existingTemplateEmpty = document.getElementById('existingTemplateEmpty');
+  const btnSaveTemplateEdits = document.getElementById('btnSaveTemplateEdits');
+  const templateManageError = document.getElementById('templateManageError');
+  const btnCloseTemplateManage = document.getElementById('btnCloseTemplateManage');
+
+  const copyConfirmBackdrop = document.getElementById('copyConfirmBackdrop');
+  const copyConfirmText = document.getElementById('copyConfirmText');
+  const btnCancelCopy = document.getElementById('btnCancelCopy');
+  const btnConfirmCopy = document.getElementById('btnConfirmCopy');
+
+  const exampleBackdrop = document.getElementById('exampleBackdrop');
+  const exampleGroupSelect = document.getElementById('exampleGroupSelect');
+  const exampleText = document.getElementById('exampleText');
+  const btnRerollExample = document.getElementById('btnRerollExample');
+  const btnGotoUrl = document.getElementById('btnGotoUrl');
+  const btnCopyExample = document.getElementById('btnCopyExample');
+  const btnCloseExample = document.getElementById('btnCloseExample');
+
+  // ---------- 密碼驗證 ----------
+  btnCommentSettings.addEventListener('click', () => {
+    commentPasswordInput.value = '';
+    commentPasswordError.hidden = true;
+    commentPasswordBackdrop.hidden = false;
+    commentPasswordInput.focus();
+  });
+
+  btnCancelCommentPassword.addEventListener('click', () => {
+    commentPasswordBackdrop.hidden = true;
+  });
+  commentPasswordBackdrop.addEventListener('click', (e) => {
+    if (e.target === commentPasswordBackdrop) commentPasswordBackdrop.hidden = true;
+  });
+
+  commentPasswordForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    commentPasswordError.hidden = true;
+    const password = commentPasswordInput.value;
+
+    try {
+      const res = await fetch(`${API_URL}/api/comment-settings/verify`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password }),
+      });
+      const data = await res.json();
+      if (!data.ok) {
+        commentPasswordError.textContent = '密碼錯誤，請再試一次';
+        commentPasswordError.hidden = false;
+        return;
+      }
+      commentSettingsPassword = password;
+      commentPasswordBackdrop.hidden = true;
+      normalActions.hidden = true;
+      commentMenuActions.hidden = false;
+    } catch (err) {
+      commentPasswordError.textContent = '連線失敗，請稍後再試';
+      commentPasswordError.hidden = false;
+    }
+  });
+
+  btnCommentSettingsClose.addEventListener('click', () => {
+    // 關閉整個留言設定面板，密碼驗證失效，下次要重新輸入
+    commentSettingsPassword = null;
+    commentMenuActions.hidden = true;
+    normalActions.hidden = false;
+  });
+
+  // ---------- 選取卡片模式 ----------
+  function enterCommentSelectMode() {
+    commentSelectMode = true;
+    commentMenuActions.hidden = true;
+    commentSelectActions.hidden = false;
+    render();
+  }
+
+  function exitCommentSelectMode() {
+    commentSelectMode = false;
+    commentSelectActions.hidden = true;
+    commentMenuActions.hidden = false;
+    render();
+  }
+
+  btnCommentAdd.addEventListener('click', enterCommentSelectMode);
+  btnCommentEdit.addEventListener('click', enterCommentSelectMode);
+  btnCommentDelete.addEventListener('click', enterCommentSelectMode);
+  btnCancelCommentSelect.addEventListener('click', exitCommentSelectMode);
+
+  function selectCardForCommentSettings(item) {
+    exitCommentSelectMode();
+    openTemplateManage(item);
+  }
+
+  // ---------- 範本管理畫面 ----------
+  async function openTemplateManage(item) {
+    managingLink = item;
+    selectedGroupId = null;
+    templateManageLinkTitle.textContent = item.title || item.url;
+    templateManageError.hidden = true;
+    templateGroupDetail.hidden = true;
+    rawTextInput.value = '';
+    splitResultList.innerHTML = '';
+    splitConfirmRow.hidden = true;
+    templateManageBackdrop.hidden = false;
+    await loadManagingGroups();
+  }
+
+  async function loadManagingGroups() {
+    try {
+      const res = await fetch(`${API_URL}/api/comment-groups?link_id=${managingLink.id}`);
+      managingGroups = await res.json();
+    } catch (err) {
+      managingGroups = [];
+    }
+    renderGroupList();
+  }
+
+  function renderGroupList() {
+    templateGroupList.innerHTML = '';
+    managingGroups.forEach((g) => {
+      const row = document.createElement('div');
+      row.className = 'group-row' + (g.id === selectedGroupId ? ' selected' : '');
+      row.innerHTML = `
+        <span class="group-name">${escapeHtml(g.name)}</span>
+        <span class="group-count">共 ${g.total_count} 則・未使用 ${g.unused_count} 則</span>
+        <button type="button" class="btn-icon group-delete" title="刪除組別">✕</button>
+      `;
+      row.querySelector('.group-name').addEventListener('click', () => selectGroup(g.id));
+      row.querySelector('.group-count').addEventListener('click', () => selectGroup(g.id));
+      row.querySelector('.group-delete').addEventListener('click', async (e) => {
+        e.stopPropagation();
+        if (!confirm(`確定刪除「${g.name}」這個組別嗎？底下所有範例會一併刪除。`)) return;
+        try {
+          const res = await fetch(`${API_URL}/api/comment-groups/${g.id}`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ password: commentSettingsPassword }),
+          });
+          if (!res.ok) throw new Error();
+          if (selectedGroupId === g.id) {
+            selectedGroupId = null;
+            templateGroupDetail.hidden = true;
+          }
+          await loadManagingGroups();
+          toast('已刪除組別');
+        } catch (err) {
+          toast('刪除組別失敗');
+        }
+      });
+      templateGroupList.appendChild(row);
+    });
+  }
+
+  btnAddGroup.addEventListener('click', async () => {
+    const name = newGroupNameInput.value.trim();
+    if (!name) {
+      toast('請輸入組別名稱');
+      return;
+    }
+    try {
+      const res = await fetch(`${API_URL}/api/comment-groups`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: commentSettingsPassword, link_id: managingLink.id, name }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast(data.error || '新增組別失敗');
+        return;
+      }
+      newGroupNameInput.value = '';
+      await loadManagingGroups();
+      selectGroup(data.id);
+      toast('已新增組別');
+    } catch (err) {
+      toast('新增組別失敗，請稍後再試');
+    }
+  });
+
+  async function selectGroup(groupId) {
+    selectedGroupId = groupId;
+    renderGroupList();
+    templateGroupDetail.hidden = false;
+    rawTextInput.value = '';
+    splitResultList.innerHTML = '';
+    splitConfirmRow.hidden = true;
+    await loadExistingTemplates();
+  }
+
+  async function loadExistingTemplates() {
+    try {
+      const res = await fetch(`${API_URL}/api/comment-templates?group_id=${selectedGroupId}`);
+      existingTemplates = await res.json();
+    } catch (err) {
+      existingTemplates = [];
+    }
+    renderExistingTemplateList();
+  }
+
+  function renderExistingTemplateList() {
+    existingTemplateList.innerHTML = '';
+    existingTemplateEmpty.hidden = existingTemplates.length > 0;
+
+    existingTemplates.forEach((t) => {
+      const row = document.createElement('div');
+      row.className = 'template-row';
+      row.dataset.id = t.id;
+      row.innerHTML = `
+        <textarea rows="2">${escapeHtml(t.content)}</textarea>
+        <button type="button" class="btn-icon template-delete" title="刪除">🗑</button>
+      `;
+      row.querySelector('.template-delete').addEventListener('click', async () => {
+        if (!confirm('確定刪除這則範例嗎？')) return;
+        try {
+          const res = await fetch(`${API_URL}/api/comment-templates/${t.id}`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ password: commentSettingsPassword }),
+          });
+          if (!res.ok) throw new Error();
+          await loadExistingTemplates();
+          await loadManagingGroups();
+          toast('已刪除範例');
+        } catch (err) {
+          toast('刪除失敗');
+        }
+      });
+      existingTemplateList.appendChild(row);
+    });
+  }
+
+  btnSplitText.addEventListener('click', () => {
+    const raw = rawTextInput.value;
+    if (!raw) {
+      toast('請先貼上原文');
+      return;
+    }
+    const segments = raw.split('\n');
+    splitResultList.innerHTML = '';
+    segments.forEach((seg) => {
+      const row = document.createElement('div');
+      row.className = 'template-row';
+      row.innerHTML = `
+        <textarea rows="2">${escapeHtml(seg)}</textarea>
+        <button type="button" class="btn-icon split-delete" title="刪除這一則">🗑</button>
+      `;
+      row.querySelector('.split-delete').addEventListener('click', () => row.remove());
+      splitResultList.appendChild(row);
+    });
+    splitConfirmRow.hidden = segments.length === 0;
+  });
+
+  btnConfirmAddSplit.addEventListener('click', async () => {
+    const contents = Array.from(splitResultList.querySelectorAll('textarea')).map(t => t.value);
+    const 有效內容 = contents.filter(c => c.trim() !== '');
+    if (有效內容.length === 0) {
+      toast('沒有可新增的內容');
+      return;
+    }
+    try {
+      const res = await fetch(`${API_URL}/api/comment-templates/bulk`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: commentSettingsPassword, group_id: selectedGroupId, contents: 有效內容 }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast(data.error || '新增失敗');
+        return;
+      }
+      rawTextInput.value = '';
+      splitResultList.innerHTML = '';
+      splitConfirmRow.hidden = true;
+      await loadExistingTemplates();
+      await loadManagingGroups();
+      toast(`已新增 ${有效內容.length} 則範例`);
+    } catch (err) {
+      toast('新增失敗，請稍後再試');
+    }
+  });
+
+  btnSaveTemplateEdits.addEventListener('click', async () => {
+    const rows = Array.from(existingTemplateList.querySelectorAll('.template-row'));
+    let 成功數 = 0;
+    let 失敗數 = 0;
+
+    for (const row of rows) {
+      const id = row.dataset.id;
+      const original = existingTemplates.find(t => String(t.id) === String(id));
+      const newValue = row.querySelector('textarea').value.trim();
+      if (!original || newValue === original.content) continue; // 沒改變就跳過
+      if (!newValue) { 失敗數++; continue; } // 不允許改成空白
+
+      try {
+        const res = await fetch(`${API_URL}/api/comment-templates/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: commentSettingsPassword, content: newValue }),
+        });
+        if (res.ok) 成功數++; else 失敗數++;
+      } catch (err) {
+        失敗數++;
+      }
+    }
+
+    await loadExistingTemplates();
+    if (成功數 === 0 && 失敗數 === 0) {
+      toast('沒有內容被修改');
+    } else {
+      toast(`已儲存 ${成功數} 則修改${失敗數 > 0 ? `，${失敗數} 則失敗` : ''}`);
+    }
+  });
+
+  btnCloseTemplateManage.addEventListener('click', async () => {
+    templateManageBackdrop.hidden = true;
+    managingLink = null;
+    selectedGroupId = null;
+    await loadLinks(); // 卡片是否顯示「留言範例」按鈕可能已經改變，重新整理看板
+  });
+
+  // ---------- 卡片上的「留言範例」彈窗（公開功能，不需密碼） ----------
+  async function openExampleModal(item) {
+    exampleLink = item;
+    currentExample = null;
+    exampleText.textContent = '載入中…';
+    exampleBackdrop.hidden = false;
+
+    try {
+      const res = await fetch(`${API_URL}/api/comment-groups?link_id=${item.id}`);
+      const groups = await res.json();
+      exampleGroupSelect.innerHTML = groups
+        .map(g => `<option value="${g.id}">${escapeHtml(g.name)}</option>`)
+        .join('');
+      if (groups.length > 0) {
+        await loadRandomExample(groups[0].id);
+      } else {
+        exampleText.textContent = '無可用的範例';
+      }
+    } catch (err) {
+      exampleText.textContent = '載入失敗，請稍後再試';
+    }
+  }
+
+  async function loadRandomExample(groupId) {
+    exampleText.textContent = '載入中…';
+    try {
+      const res = await fetch(`${API_URL}/api/comment-templates/random?group_id=${groupId}`);
+      const data = await res.json();
+      if (data) {
+        currentExample = data;
+        exampleText.textContent = data.content;
+      } else {
+        currentExample = null;
+        exampleText.textContent = '無可用的範例';
+      }
+    } catch (err) {
+      currentExample = null;
+      exampleText.textContent = '載入失敗，請稍後再試';
+    }
+  }
+
+  exampleGroupSelect.addEventListener('change', () => {
+    if (exampleGroupSelect.value) loadRandomExample(exampleGroupSelect.value);
+  });
+
+  btnRerollExample.addEventListener('click', () => {
+    if (exampleGroupSelect.value) loadRandomExample(exampleGroupSelect.value);
+  });
+
+  btnGotoUrl.addEventListener('click', () => {
+    if (!exampleLink) return;
+    window.open(exampleLink.url, '_blank', 'noopener');
+    markRead(exampleLink);
+  });
+
+  btnCopyExample.addEventListener('click', () => {
+    if (!currentExample) {
+      toast('無可用的範例可複製');
+      return;
+    }
+    copyConfirmText.textContent = currentExample.content;
+    copyConfirmBackdrop.hidden = false;
+  });
+
+  btnCancelCopy.addEventListener('click', () => { copyConfirmBackdrop.hidden = true; });
+  copyConfirmBackdrop.addEventListener('click', (e) => {
+    if (e.target === copyConfirmBackdrop) copyConfirmBackdrop.hidden = true;
+  });
+
+  btnConfirmCopy.addEventListener('click', async () => {
+    if (!currentExample) { copyConfirmBackdrop.hidden = true; return; }
+    const { id, content } = currentExample;
+
+    try {
+      await navigator.clipboard.writeText(content);
+    } catch (err) {
+      // 部分瀏覽器/非 HTTPS 環境可能無法使用剪貼簿 API，不中斷流程
+    }
+
+    try {
+      await fetch(`${API_URL}/api/comment-templates/${id}/use`, { method: 'POST' });
+    } catch (err) {
+      // 標記失敗不影響使用者，只是下次可能還會抽到這句
+    }
+
+    copyConfirmBackdrop.hidden = true;
+    toast('已複製留言');
+    if (exampleGroupSelect.value) await loadRandomExample(exampleGroupSelect.value);
+  });
+
+  btnCloseExample.addEventListener('click', () => {
+    exampleBackdrop.hidden = true;
+    exampleLink = null;
+    currentExample = null;
   });
 
   // ---------- 初始化 ----------

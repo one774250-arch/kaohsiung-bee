@@ -5,6 +5,9 @@ from flask_cors import CORS
 from database import (
     初始化資料庫, 新增連結, 取得所有連結, 刪除連結, 標記已讀, 更新連結,
     ALLOWED_CATEGORY, ALLOWED_PLATFORM,
+    新增組別, 取得卡片組別, 刪除組別,
+    新增留言範例列表, 取得組別範例, 更新留言範例, 刪除留言範例,
+    取得隨機未使用範例, 標記範例已使用,
 )
 from fetch_title import 抓取標題
 
@@ -13,9 +16,16 @@ CORS(app)
 
 初始化資料庫()
 
+# 留言設定面板的密碼。之後如果要換掉，改這裡的值再重新部署即可。
+COMMENT_SETTINGS_PASSWORD = "000"
+
 
 def 網址格式正確(url):
     return isinstance(url, str) and (url.startswith("http://") or url.startswith("https://"))
+
+
+def 留言設定密碼正確(data):
+    return (data.get("password") or "") == COMMENT_SETTINGS_PASSWORD
 
 
 @app.route("/")
@@ -117,6 +127,133 @@ def 標記已讀API(link_id):
         return jsonify({"error": "缺少裝置識別碼"}), 400
 
     標記已讀(link_id, device_id)
+    return jsonify({"ok": True})
+
+
+# ==================== 留言範本功能 ====================
+
+@app.route("/api/comment-settings/verify", methods=["POST"])
+def 驗證留言設定密碼API():
+    data = request.get_json(force=True, silent=True) or {}
+    return jsonify({"ok": 留言設定密碼正確(data)})
+
+
+@app.route("/api/comment-groups", methods=["GET"])
+def 查詢組別API():
+    link_id = request.args.get("link_id", type=int)
+    if not link_id:
+        return jsonify({"error": "缺少 link_id"}), 400
+
+    groups = 取得卡片組別(link_id)
+    for g in groups:
+        g["created_at"] = g["created_at"].isoformat() if g["created_at"] else None
+    return jsonify(groups)
+
+
+@app.route("/api/comment-groups", methods=["POST"])
+def 新增組別API():
+    data = request.get_json(force=True, silent=True) or {}
+    if not 留言設定密碼正確(data):
+        return jsonify({"error": "密碼錯誤"}), 403
+
+    link_id = data.get("link_id")
+    name = (data.get("name") or "").strip()
+    if not link_id or not name:
+        return jsonify({"error": "請輸入組別名稱"}), 400
+
+    group = 新增組別(link_id, name)
+    group["created_at"] = group["created_at"].isoformat()
+    return jsonify(group), 201
+
+
+@app.route("/api/comment-groups/<int:group_id>", methods=["DELETE"])
+def 刪除組別API(group_id):
+    data = request.get_json(force=True, silent=True) or {}
+    if not 留言設定密碼正確(data):
+        return jsonify({"error": "密碼錯誤"}), 403
+
+    成功 = 刪除組別(group_id)
+    if not 成功:
+        return jsonify({"error": "找不到這個組別，可能已被刪除"}), 404
+    return jsonify({"ok": True})
+
+
+@app.route("/api/comment-templates", methods=["GET"])
+def 查詢範例API():
+    group_id = request.args.get("group_id", type=int)
+    if not group_id:
+        return jsonify({"error": "缺少 group_id"}), 400
+
+    templates = 取得組別範例(group_id)
+    for t in templates:
+        t["created_at"] = t["created_at"].isoformat() if t["created_at"] else None
+    return jsonify(templates)
+
+
+@app.route("/api/comment-templates/bulk", methods=["POST"])
+def 批次新增範例API():
+    data = request.get_json(force=True, silent=True) or {}
+    if not 留言設定密碼正確(data):
+        return jsonify({"error": "密碼錯誤"}), 403
+
+    group_id = data.get("group_id")
+    contents = data.get("contents")
+    if not group_id or not isinstance(contents, list):
+        return jsonify({"error": "缺少必要欄位"}), 400
+
+    contents = [c.strip() for c in contents if isinstance(c, str) and c.strip()]
+    if not contents:
+        return jsonify({"error": "沒有可新增的內容"}), 400
+
+    新增結果 = 新增留言範例列表(group_id, contents)
+    for t in 新增結果:
+        t["created_at"] = t["created_at"].isoformat()
+    return jsonify(新增結果), 201
+
+
+@app.route("/api/comment-templates/<int:template_id>", methods=["PUT"])
+def 修改範例API(template_id):
+    data = request.get_json(force=True, silent=True) or {}
+    if not 留言設定密碼正確(data):
+        return jsonify({"error": "密碼錯誤"}), 403
+
+    content = (data.get("content") or "").strip()
+    if not content:
+        return jsonify({"error": "內容不能空白"}), 400
+
+    成功 = 更新留言範例(template_id, content)
+    if not 成功:
+        return jsonify({"error": "找不到這則範例，可能已被刪除"}), 404
+    return jsonify({"ok": True})
+
+
+@app.route("/api/comment-templates/<int:template_id>", methods=["DELETE"])
+def 刪除範例API(template_id):
+    data = request.get_json(force=True, silent=True) or {}
+    if not 留言設定密碼正確(data):
+        return jsonify({"error": "密碼錯誤"}), 403
+
+    成功 = 刪除留言範例(template_id)
+    if not 成功:
+        return jsonify({"error": "找不到這則範例，可能已被刪除"}), 404
+    return jsonify({"ok": True})
+
+
+@app.route("/api/comment-templates/random", methods=["GET"])
+def 隨機範例API():
+    group_id = request.args.get("group_id", type=int)
+    if not group_id:
+        return jsonify({"error": "缺少 group_id"}), 400
+
+    範例 = 取得隨機未使用範例(group_id)
+    return jsonify(範例)  # 沒有可用範例時回傳 null
+
+
+@app.route("/api/comment-templates/<int:template_id>/use", methods=["POST"])
+def 標記已使用API(template_id):
+    成功 = 標記範例已使用(template_id)
+    if not 成功:
+        return jsonify({"error": "找不到這則範例，可能已被刪除"}), 404
     return jsonify({"ok": True})
 
 
