@@ -269,7 +269,7 @@
       <div class="card-body">
         <div class="card-title-row">
           ${item.is_priority ? '<span class="priority-badge">優先</span>' : ''}
-          ${(commentSelectMode && item.has_comment_templates) ? '<span class="has-template-badge">✓ 已建立留言範例</span>' : ''}
+          ${((commentSelectMode || shareMode) && item.has_comment_templates) ? '<span class="has-template-badge">✓ 已建立留言範例</span>' : ''}
           <a class="card-title${titleClass}" href="${escapeHtml(item.url)}" target="_blank" rel="noopener">${titleText}</a>
         </div>
         <p class="card-meta">
@@ -1246,7 +1246,7 @@
 
     copyConfirmBackdrop.hidden = true;
     toast('已複製留言');
-    if (exampleGroupSelect.value) await loadRandomExample(exampleGroupSelect.value);
+    // 複製後維持顯示原本這句，不自動重選；要換下一句需要使用者自己按「重選」
   });
 
   btnCloseExample.addEventListener('click', async () => {

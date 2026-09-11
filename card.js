@@ -131,7 +131,7 @@
 
     copyConfirmBackdrop.hidden = true;
     toast('已複製留言');
-    if (exampleGroupSelect.value) await loadRandomExample(exampleGroupSelect.value);
+    // 複製後維持顯示原本這句，不自動重選；要換下一句需要使用者自己按「重選」
   });
 
   // 離開頁面時盡量把目前搶佔的範例釋放掉（最佳努力，不保證一定成功）
