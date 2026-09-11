@@ -599,9 +599,7 @@
   const btnCommentSettings = document.getElementById('btnCommentSettings');
   const commentMenuActions = document.getElementById('commentMenuActions');
   const commentSelectActions = document.getElementById('commentSelectActions');
-  const btnCommentAdd = document.getElementById('btnCommentAdd');
-  const btnCommentEdit = document.getElementById('btnCommentEdit');
-  const btnCommentDelete = document.getElementById('btnCommentDelete');
+  const btnCommentManage = document.getElementById('btnCommentManage');
   const btnCommentSettingsClose = document.getElementById('btnCommentSettingsClose');
   const btnCancelCommentSelect = document.getElementById('btnCancelCommentSelect');
 
@@ -705,9 +703,7 @@
     render();
   }
 
-  btnCommentAdd.addEventListener('click', enterCommentSelectMode);
-  btnCommentEdit.addEventListener('click', enterCommentSelectMode);
-  btnCommentDelete.addEventListener('click', enterCommentSelectMode);
+  btnCommentManage.addEventListener('click', enterCommentSelectMode);
   btnCancelCommentSelect.addEventListener('click', exitCommentSelectMode);
 
   function selectCardForCommentSettings(item) {
