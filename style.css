@@ -630,3 +630,48 @@ button{ font-family:inherit; cursor:pointer; }
   display:flex;
   align-items:center;
 }
+
+.has-template-badge{
+  flex-shrink:0;
+  font-size:11px;
+  font-weight:700;
+  padding:2px 8px;
+  border-radius:6px;
+  background:var(--share-bg);
+  color:var(--share);
+  border:1px solid var(--share);
+}
+
+.quick-phrase-list{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  margin-top:8px;
+}
+
+.quick-phrase-chip{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  padding:6px 10px;
+  border-radius:8px;
+  border:1px solid var(--line);
+  background:#F0E4D8;
+  max-width:100%;
+}
+.quick-phrase-text{
+  font-size:13px;
+  color:var(--ink);
+  cursor:pointer;
+  word-break:break-word;
+}
+.quick-phrase-text:hover{ text-decoration:underline; }
+.quick-phrase-delete{
+  width:20px;
+  height:20px;
+  font-size:11px;
+  flex-shrink:0;
+  border:none;
+  background:transparent;
+}
+.quick-phrase-delete:hover{ background:#E6D8C6; border-radius:5px; }

@@ -8,6 +8,7 @@ from database import (
     新增組別, 取得卡片組別, 刪除組別,
     新增留言範例列表, 取得組別範例, 更新留言範例, 刪除留言範例,
     取得並鎖定隨機範例, 釋放範例,
+    新增常用文字, 取得常用文字清單, 刪除常用文字,
 )
 from fetch_title import 抓取標題
 
@@ -252,6 +253,36 @@ def 隨機範例API():
 @app.route("/api/comment-templates/<int:template_id>/release", methods=["POST"])
 def 釋放範例API(template_id):
     釋放範例(template_id)  # 找不到也視為成功（可能已經被刪除），不需要特別擋
+    return jsonify({"ok": True})
+
+
+# ==================== 分享功能：常用文字 ====================
+
+@app.route("/api/quick-phrases", methods=["GET"])
+def 查詢常用文字API():
+    phrases = 取得常用文字清單()
+    for p in phrases:
+        p["created_at"] = p["created_at"].isoformat() if p["created_at"] else None
+    return jsonify(phrases)
+
+
+@app.route("/api/quick-phrases", methods=["POST"])
+def 新增常用文字API():
+    data = request.get_json(force=True, silent=True) or {}
+    content = (data.get("content") or "").strip()
+    if not content:
+        return jsonify({"error": "內容不能空白"}), 400
+
+    phrase = 新增常用文字(content)
+    phrase["created_at"] = phrase["created_at"].isoformat()
+    return jsonify(phrase), 201
+
+
+@app.route("/api/quick-phrases/<int:phrase_id>", methods=["DELETE"])
+def 刪除常用文字API(phrase_id):
+    成功 = 刪除常用文字(phrase_id)
+    if not 成功:
+        return jsonify({"error": "找不到這則常用文字，可能已被刪除"}), 404
     return jsonify({"ok": True})
 
 

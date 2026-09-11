@@ -62,6 +62,15 @@ def 初始化資料庫():
         )
     """)
 
+    # 分享功能：常用文字（單純一張清單，不分組、不跟卡片綁定）
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS quick_phrases (
+            id SERIAL PRIMARY KEY,
+            content TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT NOW()
+        )
+    """)
+
     cur.execute("""
         CREATE TABLE IF NOT EXISTS link_reads (
             id SERIAL PRIMARY KEY,
@@ -311,6 +320,43 @@ def 釋放範例(template_id):
     conn = 取得連線()
     cur = conn.cursor()
     cur.execute("UPDATE comment_templates SET is_used = FALSE WHERE id = %s", (template_id,))
+    影響筆數 = cur.rowcount
+    conn.commit()
+    cur.close()
+    conn.close()
+    return 影響筆數 > 0
+
+
+# ==================== 分享功能：常用文字 ====================
+
+def 新增常用文字(content):
+    conn = 取得連線()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute("""
+        INSERT INTO quick_phrases (content) VALUES (%s)
+        RETURNING id, content, created_at
+    """, (content,))
+    row = cur.fetchone()
+    conn.commit()
+    cur.close()
+    conn.close()
+    return dict(row)
+
+
+def 取得常用文字清單():
+    conn = 取得連線()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute("SELECT id, content, created_at FROM quick_phrases ORDER BY created_at ASC")
+    rows = cur.fetchall()
+    cur.close()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def 刪除常用文字(phrase_id):
+    conn = 取得連線()
+    cur = conn.cursor()
+    cur.execute("DELETE FROM quick_phrases WHERE id = %s", (phrase_id,))
     影響筆數 = cur.rowcount
     conn.commit()
     cur.close()

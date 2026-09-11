@@ -180,6 +180,23 @@
   let exampleLink = null;             // 目前開啟「留言範例」彈窗的卡片
   let currentExample = null;          // 目前彈窗顯示的範例 { id, content } 或 null
 
+  // ---------- 分享功能：狀態 ----------
+  let shareMode = false; // 是否處於「分享：選取卡片」模式
+
+  const btnEnterShare = document.getElementById('btnEnterShare');
+  const shareActions = document.getElementById('shareActions');
+  const shareSelectCount = document.getElementById('shareSelectCount');
+  const btnConfirmShare = document.getElementById('btnConfirmShare');
+  const btnCancelShare = document.getElementById('btnCancelShare');
+
+  const shareComposeBackdrop = document.getElementById('shareComposeBackdrop');
+  const shareComposeText = document.getElementById('shareComposeText');
+  const btnCopyShareCompose = document.getElementById('btnCopyShareCompose');
+  const quickPhraseList = document.getElementById('quickPhraseList');
+  const newQuickPhraseInput = document.getElementById('newQuickPhraseInput');
+  const btnAddQuickPhrase = document.getElementById('btnAddQuickPhrase');
+  const btnCloseShareCompose = document.getElementById('btnCloseShareCompose');
+
   // ---------- 工具函式 ----------
   function toast(msg) {
     toastEl.textContent = msg;
@@ -239,14 +256,16 @@
     const titleClass = item.title ? '' : ' no-title';
     const clickCount = item.click_count || 0;
     const dateLabel = item.created_at ? 轉為民國日期(new Date(item.created_at)) : '';
-    const 一般瀏覽模式 = !deleteMode && !editMode && !commentSelectMode;
+    const 一般瀏覽模式 = !deleteMode && !editMode && !commentSelectMode && !shareMode;
+    const 顯示核取方塊 = deleteMode || shareMode;
 
     card.innerHTML = `
       <span class="seq-badge">${seq}</span>
-      ${deleteMode ? `<input type="checkbox" class="card-check" ${selectedIds.has(item.id) ? 'checked' : ''}>` : ''}
+      ${顯示核取方塊 ? `<input type="checkbox" class="card-check" ${selectedIds.has(item.id) ? 'checked' : ''}>` : ''}
       <div class="card-body">
         <div class="card-title-row">
           ${item.is_priority ? '<span class="priority-badge">優先</span>' : ''}
+          ${(commentSelectMode && item.has_comment_templates) ? '<span class="has-template-badge">✓ 已建立留言範例</span>' : ''}
           <a class="card-title${titleClass}" href="${escapeHtml(item.url)}" target="_blank" rel="noopener">${titleText}</a>
         </div>
         <p class="card-meta">
@@ -258,15 +277,15 @@
         </p>
         ${(一般瀏覽模式 && item.has_comment_templates) ? '<button type="button" class="btn-example">💬 留言範例</button>' : ''}
       </div>
-      ${(deleteMode || editMode || commentSelectMode) ? '' : `<span class="read-tag ${item.is_read ? 'read' : 'unread'}">${item.is_read ? '已點閱' : '尚未點閱'}</span>`}
+      ${一般瀏覽模式 ? `<span class="read-tag ${item.is_read ? 'read' : 'unread'}">${item.is_read ? '已點閱' : '尚未點閱'}</span>` : ''}
     `;
 
     const link = card.querySelector('.card-title');
     const checkbox = card.querySelector('.card-check');
     const exampleBtn = card.querySelector('.btn-example');
 
-    if (deleteMode) {
-      // 刪除模式下，只有核取方塊本身可以切換勾選，點卡片其他地方不會有反應
+    if (deleteMode || shareMode) {
+      // 刪除／分享模式下，只有核取方塊本身可以切換勾選，點卡片其他地方不會有反應
       checkbox.addEventListener('change', () => toggleSelect(item.id, card, checkbox));
     } else if (editMode) {
       // 修改模式下，點卡片（含標題）直接開啟修改視窗，不會另外開新分頁
@@ -311,6 +330,7 @@
 
   function updateSelectCount() {
     selectCountEl.textContent = `已選取 ${selectedIds.size} 筆`;
+    if (shareSelectCount) shareSelectCount.textContent = `已選取 ${selectedIds.size} 筆`;
   }
 
   // ---------- 標記已點閱 ----------
@@ -591,6 +611,145 @@
     } finally {
       btnDoDelete.disabled = false;
     }
+  });
+
+  // ==================== 分享功能 ====================
+
+  function enterShareMode() {
+    shareMode = true;
+    selectedIds.clear();
+    updateSelectCount();
+    normalActions.hidden = true;
+    shareActions.hidden = false;
+    render();
+  }
+
+  function exitShareMode() {
+    shareMode = false;
+    selectedIds.clear();
+    shareActions.hidden = true;
+    normalActions.hidden = false;
+    render();
+  }
+
+  btnEnterShare.addEventListener('click', enterShareMode);
+  btnCancelShare.addEventListener('click', exitShareMode);
+
+  function 取得已選取的卡片() {
+    const all = [
+      ...(currentData.report || []),
+      ...(currentData.share || []),
+      ...(currentData.friend || []),
+    ];
+    return all.filter(item => selectedIds.has(item.id));
+  }
+
+  btnConfirmShare.addEventListener('click', () => {
+    if (selectedIds.size === 0) {
+      toast('請先選取要分享的卡片');
+      return;
+    }
+    const items = 取得已選取的卡片();
+    exitShareMode();
+    openShareCompose(items);
+  });
+
+  async function openShareCompose(items) {
+    shareComposeText.value = items.map(item => item.url).join('\n');
+    shareComposeBackdrop.hidden = false;
+    await loadQuickPhrases();
+  }
+
+  async function loadQuickPhrases() {
+    quickPhraseList.innerHTML = '載入中…';
+    try {
+      const res = await fetch(`${API_URL}/api/quick-phrases`);
+      const phrases = await res.json();
+      renderQuickPhraseList(phrases);
+    } catch (err) {
+      quickPhraseList.innerHTML = '';
+      toast('常用文字載入失敗');
+    }
+  }
+
+  function renderQuickPhraseList(phrases) {
+    quickPhraseList.innerHTML = '';
+    if (phrases.length === 0) {
+      quickPhraseList.innerHTML = '<p class="empty-hint">還沒有任何常用文字，可以在下方新增。</p>';
+      return;
+    }
+    phrases.forEach((p) => {
+      const chip = document.createElement('div');
+      chip.className = 'quick-phrase-chip';
+      chip.innerHTML = `
+        <span class="quick-phrase-text">${escapeHtml(p.content)}</span>
+        <button type="button" class="btn-icon quick-phrase-delete" title="刪除">✕</button>
+      `;
+      chip.querySelector('.quick-phrase-text').addEventListener('click', () => 插入常用文字(p.content));
+      chip.querySelector('.quick-phrase-delete').addEventListener('click', async (e) => {
+        e.stopPropagation();
+        if (!confirm('確定刪除這則常用文字嗎？')) return;
+        try {
+          const res = await fetch(`${API_URL}/api/quick-phrases/${p.id}`, { method: 'DELETE' });
+          if (!res.ok) throw new Error();
+          await loadQuickPhrases();
+        } catch (err) {
+          toast('刪除失敗');
+        }
+      });
+      quickPhraseList.appendChild(chip);
+    });
+  }
+
+  function 插入常用文字(text) {
+    const ta = shareComposeText;
+    const start = ta.selectionStart ?? ta.value.length;
+    const end = ta.selectionEnd ?? ta.value.length;
+    ta.value = ta.value.slice(0, start) + text + ta.value.slice(end);
+    const newPos = start + text.length;
+    ta.focus();
+    ta.selectionStart = ta.selectionEnd = newPos;
+  }
+
+  btnAddQuickPhrase.addEventListener('click', async () => {
+    const content = newQuickPhraseInput.value.trim();
+    if (!content) {
+      toast('請輸入內容');
+      return;
+    }
+    try {
+      const res = await fetch(`${API_URL}/api/quick-phrases`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast(data.error || '新增失敗');
+        return;
+      }
+      newQuickPhraseInput.value = '';
+      await loadQuickPhrases();
+      toast('已新增常用文字');
+    } catch (err) {
+      toast('新增失敗，請稍後再試');
+    }
+  });
+
+  btnCopyShareCompose.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(shareComposeText.value);
+      toast('已複製到剪貼簿');
+    } catch (err) {
+      toast('複製失敗，請手動選取文字複製');
+    }
+  });
+
+  btnCloseShareCompose.addEventListener('click', () => {
+    shareComposeBackdrop.hidden = true;
+  });
+  shareComposeBackdrop.addEventListener('click', (e) => {
+    if (e.target === shareComposeBackdrop) shareComposeBackdrop.hidden = true;
   });
 
   // ==================== 留言範本功能 ====================
