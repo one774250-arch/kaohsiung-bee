@@ -279,26 +279,38 @@ def 刪除留言範例(template_id):
     return 影響筆數 > 0
 
 
-def 取得隨機未使用範例(group_id):
+def 取得並鎖定隨機範例(group_id):
+    """原子性地搶佔一則還沒使用的範例：選取的同時立刻標記為已使用，
+    搭配 FOR UPDATE SKIP LOCKED，確保多人同時呼叫時，每個人一定拿到不同的範例
+    （後面的人會自動跳過正被搶佔中的那一列，去搶別的），不會有兩人拿到同一句的狀況。
+    """
     conn = 取得連線()
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     cur.execute("""
-        SELECT id, group_id, content
-        FROM comment_templates
-        WHERE group_id = %s AND is_used = FALSE
-        ORDER BY RANDOM()
-        LIMIT 1
+        UPDATE comment_templates
+        SET is_used = TRUE
+        WHERE id = (
+            SELECT id FROM comment_templates
+            WHERE group_id = %s AND is_used = FALSE
+            ORDER BY RANDOM()
+            LIMIT 1
+            FOR UPDATE SKIP LOCKED
+        )
+        RETURNING id, group_id, content
     """, (group_id,))
     row = cur.fetchone()
+    conn.commit()
     cur.close()
     conn.close()
     return dict(row) if row else None
 
 
-def 標記範例已使用(template_id):
+def 釋放範例(template_id):
+    """把範例重新標記為未使用，用在使用者重選／換組別／關閉視窗卻沒有真的複製的情況，
+    讓這句話回到資源池，不會被白白浪費掉"""
     conn = 取得連線()
     cur = conn.cursor()
-    cur.execute("UPDATE comment_templates SET is_used = TRUE WHERE id = %s", (template_id,))
+    cur.execute("UPDATE comment_templates SET is_used = FALSE WHERE id = %s", (template_id,))
     影響筆數 = cur.rowcount
     conn.commit()
     cur.close()

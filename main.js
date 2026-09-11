@@ -939,6 +939,19 @@
   });
 
   // ---------- 卡片上的「留言範例」彈窗（公開功能，不需密碼） ----------
+  // 範例一旦被抽到顯示出來，後端就會立刻標記為已使用（搶佔），避免多人同時抽到同一句；
+  // 如果使用者重選、換組別、或關閉視窗卻沒有真的複製，就要把它釋放回去，才不會白白浪費掉
+  async function 釋放目前範例() {
+    if (!currentExample) return;
+    const id = currentExample.id;
+    currentExample = null;
+    try {
+      await fetch(`${API_URL}/api/comment-templates/${id}/release`, { method: 'POST' });
+    } catch (err) {
+      // 釋放失敗只是那句話暫時無法被別人抽到，不影響目前使用者的操作
+    }
+  }
+
   async function openExampleModal(item) {
     exampleLink = item;
     currentExample = null;
@@ -962,6 +975,7 @@
   }
 
   async function loadRandomExample(groupId) {
+    await 釋放目前範例(); // 換一句之前，先把手上這句還給資源池
     exampleText.textContent = '載入中…';
     try {
       const res = await fetch(`${API_URL}/api/comment-templates/random?group_id=${groupId}`);
@@ -1009,29 +1023,24 @@
 
   btnConfirmCopy.addEventListener('click', async () => {
     if (!currentExample) { copyConfirmBackdrop.hidden = true; return; }
-    const { id, content } = currentExample;
+    const { content } = currentExample;
 
     try {
       await navigator.clipboard.writeText(content);
     } catch (err) {
       // 部分瀏覽器/非 HTTPS 環境可能無法使用剪貼簿 API，不中斷流程
     }
-
-    try {
-      await fetch(`${API_URL}/api/comment-templates/${id}/use`, { method: 'POST' });
-    } catch (err) {
-      // 標記失敗不影響使用者，只是下次可能還會抽到這句
-    }
+    // 這句在顯示出來的時候就已經標記為已使用了，這裡不用再額外呼叫 API 標記
 
     copyConfirmBackdrop.hidden = true;
     toast('已複製留言');
     if (exampleGroupSelect.value) await loadRandomExample(exampleGroupSelect.value);
   });
 
-  btnCloseExample.addEventListener('click', () => {
+  btnCloseExample.addEventListener('click', async () => {
+    await 釋放目前範例(); // 關閉視窗卻沒複製，把這句還給資源池
     exampleBackdrop.hidden = true;
     exampleLink = null;
-    currentExample = null;
   });
 
   // ---------- 初始化 ----------

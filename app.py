@@ -7,7 +7,7 @@ from database import (
     ALLOWED_CATEGORY, ALLOWED_PLATFORM,
     新增組別, 取得卡片組別, 刪除組別,
     新增留言範例列表, 取得組別範例, 更新留言範例, 刪除留言範例,
-    取得隨機未使用範例, 標記範例已使用,
+    取得並鎖定隨機範例, 釋放範例,
 )
 from fetch_title import 抓取標題
 
@@ -245,15 +245,13 @@ def 隨機範例API():
     if not group_id:
         return jsonify({"error": "缺少 group_id"}), 400
 
-    範例 = 取得隨機未使用範例(group_id)
+    範例 = 取得並鎖定隨機範例(group_id)  # 選中的同時立刻標記為已使用，避免多人搶到同一句
     return jsonify(範例)  # 沒有可用範例時回傳 null
 
 
-@app.route("/api/comment-templates/<int:template_id>/use", methods=["POST"])
-def 標記已使用API(template_id):
-    成功 = 標記範例已使用(template_id)
-    if not 成功:
-        return jsonify({"error": "找不到這則範例，可能已被刪除"}), 404
+@app.route("/api/comment-templates/<int:template_id>/release", methods=["POST"])
+def 釋放範例API(template_id):
+    釋放範例(template_id)  # 找不到也視為成功（可能已經被刪除），不需要特別擋
     return jsonify({"ok": True})
 
 
