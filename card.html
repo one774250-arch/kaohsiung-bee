@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>高雄小蜜蜂｜留言範例</title>
+<script src="/config.js"></script>
+<link rel="stylesheet" href="style.css">
+<style>
+  body{ padding:0; }
+  .card-page-wrap{
+    max-width:480px;
+    margin:0 auto;
+    padding:32px 20px;
+  }
+  .card-page-brand{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    margin-bottom:24px;
+  }
+  .card-page-brand svg{ width:30px; height:30px; flex-shrink:0; }
+  .card-page-brand svg polygon{ fill:var(--honey); stroke:var(--honey-dark); stroke-width:1.5; }
+  .card-page-brand span{ font-family:'Noto Serif TC', serif; font-weight:700; font-size:18px; color:var(--ink); }
+
+  .card-page-box{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:20px 22px;
+  }
+  .card-page-title{
+    font-size:15px;
+    font-weight:600;
+    color:var(--ink);
+    margin:0 0 6px;
+  }
+  .card-page-meta{
+    font-size:12px;
+    color:var(--ink-soft);
+    margin:0 0 18px;
+  }
+  .card-page-loading, .card-page-error{
+    text-align:center;
+    color:var(--ink-soft);
+    padding:40px 0;
+  }
+</style>
+</head>
+<body>
+
+<div class="card-page-wrap">
+  <div class="card-page-brand">
+    <svg viewBox="0 0 40 40" aria-hidden="true"><polygon points="20,2 36,11 36,29 20,38 4,29 4,11" /></svg>
+    <span>高雄小蜜蜂</span>
+  </div>
+
+  <div id="cardPageLoading" class="card-page-loading">載入中…</div>
+  <div id="cardPageError" class="card-page-error" hidden>找不到這張卡片，可能已經被刪除。</div>
+
+  <div id="cardPageBox" class="card-page-box" hidden>
+    <p class="card-page-title" id="cardPageTitle"></p>
+    <p class="card-page-meta" id="cardPageMeta"></p>
+
+    <label>
+      組別
+      <select id="exampleGroupSelect"></select>
+    </label>
+
+    <label>
+      範例
+      <div class="example-field-row">
+        <div class="example-text" id="exampleText">（請選擇組別）</div>
+        <button type="button" class="btn-icon" id="btnRerollExample" title="重選">🔀</button>
+      </div>
+    </label>
+
+    <div class="modal-actions" style="justify-content:space-between;">
+      <button type="button" class="btn btn-ghost" id="btnGotoUrl">前往網址</button>
+      <button type="button" class="btn btn-primary" id="btnCopyExample">複製</button>
+    </div>
+  </div>
+</div>
+
+<!-- 複製確認 Modal -->
+<div class="modal-backdrop" id="copyConfirmBackdrop" hidden>
+  <div class="modal modal-small" role="dialog" aria-modal="true" aria-labelledby="copyConfirmTitle">
+    <h3 id="copyConfirmTitle">確認複製這句留言？</h3>
+    <p class="confirm-text" id="copyConfirmText"></p>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-ghost" id="btnCancelCopy">取消</button>
+      <button type="button" class="btn btn-primary" id="btnConfirmCopy">確認</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast" hidden></div>
+
+<script src="card.js"></script>
+</body>
+</html>

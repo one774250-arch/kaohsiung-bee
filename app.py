@@ -3,7 +3,7 @@ from flask import Flask, request, jsonify, send_from_directory, render_template_
 from flask_cors import CORS
 
 from database import (
-    初始化資料庫, 新增連結, 取得所有連結, 刪除連結, 標記已讀, 更新連結, 取得連結網址,
+    初始化資料庫, 新增連結, 取得所有連結, 刪除連結, 標記已讀, 更新連結, 取得連結網址, 取得單筆連結,
     ALLOWED_CATEGORY, ALLOWED_PLATFORM,
     新增組別, 取得卡片組別, 刪除組別,
     新增留言範例列表, 取得組別範例, 更新留言範例, 刪除留言範例,
@@ -85,6 +85,13 @@ def 轉址並標記已讀(link_id):
     return render_template_string(GO_PAGE_TEMPLATE, target_url=url, link_id=link_id)
 
 
+@app.route("/card/<int:link_id>")
+def 卡片頁面(link_id):
+    # 這是有留言範例的卡片，分享出去時用的簡化頁面，只會顯示這一張卡片本身，
+    # 不會露出整個看板；卡片編號直接由前端 JS 從網址路徑自己解析，這裡固定回同一份靜態頁面即可
+    return send_from_directory(".", "card.html")
+
+
 @app.route("/")
 def 首頁():
     return send_from_directory(".", "index.html")
@@ -99,6 +106,15 @@ def 靜態檔案(filename):
 def 查詢連結API():
     device_id = request.args.get("device_id", "")
     return jsonify(取得所有連結(device_id))
+
+
+@app.route("/api/links/<int:link_id>", methods=["GET"])
+def 查詢單筆連結API(link_id):
+    link = 取得單筆連結(link_id)
+    if not link:
+        return jsonify({"error": "找不到這筆連結，可能已被刪除"}), 404
+    link["created_at"] = link["created_at"].isoformat() if link["created_at"] else None
+    return jsonify(link)
 
 
 @app.route("/api/fetch-title", methods=["GET"])

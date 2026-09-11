@@ -661,7 +661,9 @@
   async function openShareCompose(items) {
     shareComposeRows = items.map(item => ({
       id: ++shareRowIdCounter,
-      url: `${API_URL}/go/${item.id}`,
+      // 有留言範例的卡片，導向卡片獨立頁面（裡面可以直接使用留言範例功能）；
+      // 沒有的話維持原本的轉址頁面（先記錄已點閱，再跳轉外部網址）
+      url: item.has_comment_templates ? `${API_URL}/card/${item.id}` : `${API_URL}/go/${item.id}`,
       title: item.title || null,
       isPlainText: false,
     }));

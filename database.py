@@ -195,6 +195,19 @@ def 取得連結網址(link_id):
     return row[0] if row else None
 
 
+def 取得單筆連結(link_id):
+    conn = 取得連線()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute("""
+        SELECT id, category, platform, url, title, creator_name, created_at, is_priority
+        FROM links WHERE id = %s
+    """, (link_id,))
+    row = cur.fetchone()
+    cur.close()
+    conn.close()
+    return dict(row) if row else None
+
+
 # ==================== 留言範本功能 ====================
 
 def 新增組別(link_id, name):
