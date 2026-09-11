@@ -123,9 +123,6 @@
   });
 
   btnCancelCopy.addEventListener('click', () => { copyConfirmBackdrop.hidden = true; });
-  copyConfirmBackdrop.addEventListener('click', (e) => {
-    if (e.target === copyConfirmBackdrop) copyConfirmBackdrop.hidden = true;
-  });
 
   btnConfirmCopy.addEventListener('click', async () => {
     if (!currentExample) { copyConfirmBackdrop.hidden = true; return; }

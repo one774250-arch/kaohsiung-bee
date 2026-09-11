@@ -364,9 +364,6 @@
     addBackdrop.hidden = false;
   });
   btnCancelAdd.addEventListener('click', () => { addBackdrop.hidden = true; });
-  addBackdrop.addEventListener('click', (e) => {
-    if (e.target === addBackdrop) addBackdrop.hidden = true;
-  });
 
   // 貼上網址、欄位失焦時，嘗試預覽抓取標題（抓不到就讓使用者自己填）
   urlInput.addEventListener('blur', async () => {
@@ -480,12 +477,6 @@
     editBackdrop.hidden = true;
     exitEditMode();
   });
-  editBackdrop.addEventListener('click', (e) => {
-    if (e.target === editBackdrop) {
-      editBackdrop.hidden = true;
-      exitEditMode();
-    }
-  });
 
   editUrlInput.addEventListener('blur', async () => {
     const url = editUrlInput.value.trim();
@@ -593,9 +584,6 @@
   });
 
   btnCancelConfirm.addEventListener('click', () => { confirmBackdrop.hidden = true; });
-  confirmBackdrop.addEventListener('click', (e) => {
-    if (e.target === confirmBackdrop) confirmBackdrop.hidden = true;
-  });
 
   btnDoDelete.addEventListener('click', async () => {
     const ids = Array.from(selectedIds);
@@ -810,9 +798,6 @@
   btnCloseShareCompose.addEventListener('click', () => {
     shareComposeBackdrop.hidden = true;
   });
-  shareComposeBackdrop.addEventListener('click', (e) => {
-    if (e.target === shareComposeBackdrop) shareComposeBackdrop.hidden = true;
-  });
 
   // ==================== 留言範本功能 ====================
 
@@ -870,9 +855,6 @@
 
   btnCancelCommentPassword.addEventListener('click', () => {
     commentPasswordBackdrop.hidden = true;
-  });
-  commentPasswordBackdrop.addEventListener('click', (e) => {
-    if (e.target === commentPasswordBackdrop) commentPasswordBackdrop.hidden = true;
   });
 
   commentPasswordForm.addEventListener('submit', async (e) => {
@@ -1247,9 +1229,6 @@
   });
 
   btnCancelCopy.addEventListener('click', () => { copyConfirmBackdrop.hidden = true; });
-  copyConfirmBackdrop.addEventListener('click', (e) => {
-    if (e.target === copyConfirmBackdrop) copyConfirmBackdrop.hidden = true;
-  });
 
   btnConfirmCopy.addEventListener('click', async () => {
     if (!currentExample) { copyConfirmBackdrop.hidden = true; return; }
