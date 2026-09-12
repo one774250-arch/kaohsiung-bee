@@ -418,6 +418,140 @@ button{ font-family:inherit; cursor:pointer; }
   margin:-4px 0 12px;
 }
 
+/* ---------- 批次新增 ---------- */
+.modal-header-row{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:18px;
+}
+.modal-header-row h3{ margin-bottom:0; }
+
+.btn-small{
+  font-size:12.5px;
+  padding:6px 12px;
+}
+
+.modal-large{
+  max-width:640px;
+  max-height:85vh;
+  overflow-y:auto;
+}
+
+.batch-add-sub{
+  font-size:13px;
+  color:var(--ink-soft);
+  margin:-10px 0 18px;
+}
+
+#batchAddBackdrop label{
+  display:block;
+  font-size:13px;
+  color:var(--ink-soft);
+  margin-bottom:14px;
+}
+
+#batchAddBackdrop select,
+#batchAddBackdrop textarea{
+  display:block;
+  width:100%;
+  margin-top:6px;
+  border:1px solid var(--line);
+  border-radius:8px;
+  padding:8px 10px;
+  font-size:14px;
+  font-family:inherit;
+  color:var(--ink);
+  background:#fff;
+  box-sizing:border-box;
+}
+#batchAddBackdrop select:focus,
+#batchAddBackdrop textarea:focus{
+  outline:2px solid var(--honey);
+  outline-offset:1px;
+}
+
+.batch-section-title{
+  font-size:14px;
+  font-weight:700;
+  color:var(--ink);
+  margin:20px 0 10px;
+}
+
+.batch-result-list{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+  margin-top:10px;
+}
+
+.batch-result-row{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  padding:10px;
+  border:1px solid var(--line);
+  border-radius:10px;
+  background:#fff;
+}
+#batchAddBackdrop .batch-result-row .batch-title-input{
+  width:100%;
+  margin-top:0;
+  font-weight:600;
+  border:1px solid var(--line);
+  border-radius:8px;
+  padding:8px 10px;
+  font-size:14px;
+  font-family:inherit;
+  color:var(--ink);
+  background:#fff;
+  box-sizing:border-box;
+  resize:vertical;
+}
+#batchAddBackdrop .batch-result-row .batch-row-bottom{
+  display:flex;
+  gap:8px;
+  align-items:center;
+}
+#batchAddBackdrop .batch-result-row .batch-row-bottom .batch-url-input{
+  width:auto;
+  flex:1 1 0%;
+  min-width:0;
+  margin-top:0;
+  font-size:12px;
+  color:var(--ink-soft);
+  border:1px solid var(--line);
+  border-radius:8px;
+  padding:8px 10px;
+  font-family:inherit;
+  background:#fff;
+  box-sizing:border-box;
+}
+#batchAddBackdrop .batch-result-row .batch-row-bottom .batch-platform-select{
+  width:110px;
+  flex:0 0 110px;
+  margin-top:0;
+  border:1px solid var(--line);
+  border-radius:8px;
+  padding:8px 10px;
+  font-size:13px;
+  font-family:inherit;
+  color:var(--ink);
+  background:#fff;
+  box-sizing:border-box;
+}
+#batchAddBackdrop .batch-result-row .batch-row-bottom .batch-delete-btn{
+  flex-shrink:0;
+  width:32px;
+  height:32px;
+  padding:0;
+  border-radius:8px;
+  border:1px solid var(--line);
+  background:#fff;
+  font-size:15px;
+}
+#batchAddBackdrop .batch-result-row .batch-row-bottom .batch-delete-btn:hover{ background:#EFEADB; }
+
 .confirm-text{
   font-size:14px;
   color:var(--ink-soft);

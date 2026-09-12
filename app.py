@@ -3,7 +3,7 @@ from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 
 from database import (
-    初始化資料庫, 新增連結, 取得所有連結, 刪除連結, 標記已讀, 更新連結,
+    初始化資料庫, 新增連結, 取得所有連結, 刪除連結, 標記已讀, 更新連結, 批次新增連結,
     ALLOWED_CATEGORY, ALLOWED_PLATFORM,
 )
 from fetch_title import 抓取標題
@@ -69,6 +69,44 @@ def 新增連結API():
     新連結["is_read"] = False
     新連結["click_count"] = 0
     return jsonify(新連結), 201
+
+
+@app.route("/api/links/batch", methods=["POST"])
+def 批次新增連結API():
+    data = request.get_json(force=True, silent=True) or {}
+    category = data.get("category")
+    items = data.get("items")
+
+    if category not in ("report", "share"):
+        return jsonify({"error": "分類不正確，請選擇「檢舉貼文」或「按讚分享貼文」"}), 400
+    if not isinstance(items, list) or len(items) == 0:
+        return jsonify({"error": "沒有可新增的項目"}), 400
+
+    建立清單 = []
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        url = (item.get("url") or "").strip()
+        if not 網址格式正確(url):
+            continue  # 網址格式不對的項目直接跳過，不中斷其他項目的新增
+
+        platform = item.get("platform")
+        if platform not in ALLOWED_PLATFORM:
+            platform = "other"
+
+        title = (item.get("title") or "").strip() or None
+        if not title:
+            title = 抓取標題(url)  # 分析階段沒抓到標題文字時，保底嘗試抓取網頁標題
+
+        建立清單.append({"title": title, "platform": platform, "url": url})
+
+    if not 建立清單:
+        return jsonify({"error": "沒有有效的網址可以新增"}), 400
+
+    新增結果 = 批次新增連結(category, 建立清單)
+    for r in 新增結果:
+        r["created_at"] = r["created_at"].isoformat()
+    return jsonify(新增結果), 201
 
 
 @app.route("/api/links/<int:link_id>", methods=["PUT"])

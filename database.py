@@ -42,6 +42,7 @@ def 初始化資料庫():
     # 用 IF EXISTS 讓這段在全新資料庫、或已經跑過一次的資料庫上都能安全重複執行
     cur.execute("ALTER TABLE links DROP CONSTRAINT IF EXISTS links_category_check")
     cur.execute("ALTER TABLE links ADD COLUMN IF NOT EXISTS is_priority BOOLEAN NOT NULL DEFAULT FALSE")
+    cur.execute("ALTER TABLE links ADD COLUMN IF NOT EXISTS is_batch_imported BOOLEAN NOT NULL DEFAULT FALSE")
 
     cur.execute("""
         CREATE TABLE IF NOT EXISTS link_reads (
@@ -59,21 +60,39 @@ def 初始化資料庫():
     print("資料庫初始化完成！")
 
 
-def 新增連結(category, platform, url, title, creator_name, is_priority=False):
+def 新增連結(category, platform, url, title, creator_name, is_priority=False, is_batch_imported=False):
     conn = 取得連線()
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
     cur.execute("""
-        INSERT INTO links (category, platform, url, title, creator_name, is_priority)
-        VALUES (%s, %s, %s, %s, %s, %s)
-        RETURNING id, category, platform, url, title, creator_name, created_at, is_priority
-    """, (category, platform, url, title, creator_name, is_priority))
+        INSERT INTO links (category, platform, url, title, creator_name, is_priority, is_batch_imported)
+        VALUES (%s, %s, %s, %s, %s, %s, %s)
+        RETURNING id, category, platform, url, title, creator_name, created_at, is_priority, is_batch_imported
+    """, (category, platform, url, title, creator_name, is_priority, is_batch_imported))
 
     row = cur.fetchone()
     conn.commit()
     cur.close()
     conn.close()
     return dict(row)
+
+
+def 批次新增連結(category, items):
+    """items: [{title, platform, url}, ...]，全部標記為批次匯入建立"""
+    conn = 取得連線()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    新增結果 = []
+    for item in items:
+        cur.execute("""
+            INSERT INTO links (category, platform, url, title, creator_name, is_priority, is_batch_imported)
+            VALUES (%s, %s, %s, %s, NULL, FALSE, TRUE)
+            RETURNING id, category, platform, url, title, creator_name, created_at, is_priority, is_batch_imported
+        """, (category, item["platform"], item["url"], item["title"]))
+        新增結果.append(dict(cur.fetchone()))
+    conn.commit()
+    cur.close()
+    conn.close()
+    return 新增結果
 
 
 def 取得所有連結(device_id):
@@ -85,7 +104,7 @@ def 取得所有連結(device_id):
 
     cur.execute("""
         SELECT l.id, l.category, l.platform, l.url, l.title, l.creator_name, l.created_at,
-               l.is_priority,
+               l.is_priority, l.is_batch_imported,
                CASE WHEN r.id IS NULL THEN FALSE ELSE TRUE END AS is_read,
                COALESCE(rc.click_count, 0) AS click_count
         FROM links l
