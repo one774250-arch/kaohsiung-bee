@@ -310,9 +310,6 @@
     addBackdrop.hidden = false;
   });
   btnCancelAdd.addEventListener('click', () => { addBackdrop.hidden = true; });
-  addBackdrop.addEventListener('click', (e) => {
-    if (e.target === addBackdrop) addBackdrop.hidden = true;
-  });
 
   // ---------- 批次新增 ----------
   const btnOpenBatchAdd = document.getElementById('btnOpenBatchAdd');
@@ -581,12 +578,6 @@
     editBackdrop.hidden = true;
     exitEditMode();
   });
-  editBackdrop.addEventListener('click', (e) => {
-    if (e.target === editBackdrop) {
-      editBackdrop.hidden = true;
-      exitEditMode();
-    }
-  });
 
   editUrlInput.addEventListener('blur', async () => {
     const url = editUrlInput.value.trim();
@@ -694,9 +685,6 @@
   });
 
   btnCancelConfirm.addEventListener('click', () => { confirmBackdrop.hidden = true; });
-  confirmBackdrop.addEventListener('click', (e) => {
-    if (e.target === confirmBackdrop) confirmBackdrop.hidden = true;
-  });
 
   btnDoDelete.addEventListener('click', async () => {
     const ids = Array.from(selectedIds);
