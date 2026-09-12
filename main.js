@@ -275,7 +275,7 @@
         </div>
         <p class="card-meta">
           ${categoryLabel ? `<span class="category-tag">${escapeHtml(categoryLabel)}</span>` : ''}
-          <span class="platform-tag">${escapeHtml(platformLabel)}</span>
+          ${(item.is_batch_imported && item.platform === 'other') ? '' : `<span class="platform-tag">${escapeHtml(platformLabel)}</span>`}
           <span>由 ${creator} 新增</span>
           <span>${dateLabel}</span>
           <span class="click-count">點擊 ${clickCount} 次</span>
@@ -364,6 +364,161 @@
     addBackdrop.hidden = false;
   });
   btnCancelAdd.addEventListener('click', () => { addBackdrop.hidden = true; });
+
+  // ---------- 批次新增 ----------
+  const btnOpenBatchAdd = document.getElementById('btnOpenBatchAdd');
+  const batchAddBackdrop = document.getElementById('batchAddBackdrop');
+  const batchCategorySelect = document.getElementById('batchCategorySelect');
+  const batchRawTextInput = document.getElementById('batchRawTextInput');
+  const btnAnalyzeBatch = document.getElementById('btnAnalyzeBatch');
+  const batchResultSection = document.getElementById('batchResultSection');
+  const batchResultList = document.getElementById('batchResultList');
+  const batchResultEmpty = document.getElementById('batchResultEmpty');
+  const batchAddError = document.getElementById('batchAddError');
+  const btnCancelBatchAdd = document.getElementById('btnCancelBatchAdd');
+  const btnConfirmBatchAdd = document.getElementById('btnConfirmBatchAdd');
+
+  let batchResults = []; // [{ id, title, platform, url }]
+  let batchRowIdCounter = 0;
+
+  const BATCH_PLATFORM_GUESS = [
+    { pattern: /facebook\.com|fb\.com/i, platform: 'fb' },
+    { pattern: /threads\.net|threads\.com/i, platform: 'threads' },
+    { pattern: /youtube\.com|youtu\.be/i, platform: 'youtube' },
+    { pattern: /instagram\.com/i, platform: 'ig' },
+  ];
+
+  function 猜測平台(url) {
+    for (const { pattern, platform } of BATCH_PLATFORM_GUESS) {
+      if (pattern.test(url)) return platform;
+    }
+    return 'other';
+  }
+
+  function 分析批次文字(rawText) {
+    // 用空白行把整篇文字切成一段一段；每段裡最後一行如果是網址，
+    // 就把這段變成一筆連結：除了網址以外的其他行合併當標題，開頭的項目符號會被去掉。
+    // 如果某段最後一行不是網址（例如開頭的前言段落），整段直接忽略。
+    const paragraphs = rawText.split(/\n\s*\n/);
+    const urlOnlyLine = /^(https?:\/\/\S+)$/;
+    const results = [];
+
+    for (const para of paragraphs) {
+      const lines = para.split('\n').map(l => l.trim()).filter(l => l !== '');
+      if (lines.length === 0) continue;
+
+      const lastLine = lines[lines.length - 1];
+      if (!urlOnlyLine.test(lastLine)) continue; // 最後一行不是網址，當作前言忽略
+
+      const url = lastLine;
+      let title = lines.slice(0, -1).join(' ').trim();
+      // 去掉開頭常見的項目符號，例如「(.)」「•」「-」「‧」
+      title = title.replace(/^[(（\[]?\s*[•\-*・.·]\s*[)）\]]?\s*/, '').trim();
+
+      results.push({ id: ++batchRowIdCounter, title, url, platform: 猜測平台(url) });
+    }
+    return results;
+  }
+
+  btnOpenBatchAdd.addEventListener('click', () => {
+    addBackdrop.hidden = true;
+    batchCategorySelect.value = 'report';
+    batchRawTextInput.value = '';
+    batchResultSection.hidden = true;
+    batchResultList.innerHTML = '';
+    batchAddError.hidden = true;
+    btnConfirmBatchAdd.hidden = true;
+    batchResults = [];
+    batchAddBackdrop.hidden = false;
+  });
+
+  btnCancelBatchAdd.addEventListener('click', () => {
+    batchAddBackdrop.hidden = true;
+  });
+
+  btnAnalyzeBatch.addEventListener('click', () => {
+    batchAddError.hidden = true;
+    const raw = batchRawTextInput.value;
+    if (!raw.trim()) {
+      toast('請先貼上原文');
+      return;
+    }
+    batchResults = 分析批次文字(raw);
+    renderBatchResultList();
+    batchResultSection.hidden = false;
+    btnConfirmBatchAdd.hidden = batchResults.length === 0;
+  });
+
+  function renderBatchResultList() {
+    batchResultList.innerHTML = '';
+    batchResultEmpty.hidden = batchResults.length > 0;
+
+    batchResults.forEach((item) => {
+      const row = document.createElement('div');
+      row.className = 'batch-result-row';
+      row.innerHTML = `
+        <textarea class="batch-title-input" rows="2" placeholder="標題（可自行修改）">${escapeHtml(item.title)}</textarea>
+        <div class="batch-row-bottom">
+          <input type="text" class="batch-url-input" value="${escapeHtml(item.url)}">
+          <select class="batch-platform-select">
+            <option value="ig">IG</option>
+            <option value="fb">FB</option>
+            <option value="youtube">YouTube</option>
+            <option value="threads">Threads</option>
+            <option value="news">新聞網</option>
+            <option value="other">其他</option>
+          </select>
+          <button type="button" class="btn-icon batch-delete-btn" title="刪除這一筆">🗑</button>
+        </div>
+      `;
+      row.querySelector('.batch-platform-select').value = item.platform;
+
+      row.querySelector('.batch-title-input').addEventListener('input', (e) => { item.title = e.target.value; });
+      row.querySelector('.batch-url-input').addEventListener('input', (e) => { item.url = e.target.value; });
+      row.querySelector('.batch-platform-select').addEventListener('change', (e) => { item.platform = e.target.value; });
+      row.querySelector('.batch-delete-btn').addEventListener('click', () => {
+        batchResults = batchResults.filter(r => r.id !== item.id);
+        renderBatchResultList();
+        btnConfirmBatchAdd.hidden = batchResults.length === 0;
+      });
+
+      batchResultList.appendChild(row);
+    });
+  }
+
+  btnConfirmBatchAdd.addEventListener('click', async () => {
+    if (batchResults.length === 0) return;
+    btnConfirmBatchAdd.disabled = true;
+    btnConfirmBatchAdd.textContent = '新增中…';
+
+    try {
+      const res = await fetch(`${API_URL}/api/links/batch`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          category: batchCategorySelect.value,
+          items: batchResults.map(r => ({ title: r.title, platform: r.platform, url: r.url })),
+        }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        batchAddError.textContent = data.error || '批次新增失敗';
+        batchAddError.hidden = false;
+        return;
+      }
+
+      batchAddBackdrop.hidden = true;
+      await loadLinks();
+      toast(`已新增 ${data.length} 筆連結`);
+    } catch (err) {
+      batchAddError.textContent = '網路連線異常，請稍後再試';
+      batchAddError.hidden = false;
+    } finally {
+      btnConfirmBatchAdd.disabled = false;
+      btnConfirmBatchAdd.textContent = '確認新增全部';
+    }
+  });
 
   // 貼上網址、欄位失焦時，嘗試預覽抓取標題（抓不到就讓使用者自己填）
   urlInput.addEventListener('blur', async () => {

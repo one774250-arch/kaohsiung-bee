@@ -114,7 +114,10 @@
 <!-- 新增連結 Modal -->
 <div class="modal-backdrop" id="addBackdrop" hidden>
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="addTitle">
-    <h3 id="addTitle">新增連結</h3>
+    <div class="modal-header-row">
+      <h3 id="addTitle">新增連結</h3>
+      <button type="button" class="btn btn-ghost btn-small" id="btnOpenBatchAdd">批次新增</button>
+    </div>
     <form id="addForm">
       <label class="checkbox-label">
         <input type="checkbox" name="is_priority" class="priority-checkbox">
@@ -175,6 +178,47 @@
         <button type="submit" class="btn btn-primary" id="btnSubmitAdd">確認新增</button>
       </div>
     </form>
+  </div>
+</div>
+
+<!-- 批次新增 Modal -->
+<div class="modal-backdrop" id="batchAddBackdrop" hidden>
+  <div class="modal modal-large" role="dialog" aria-modal="true" aria-labelledby="batchAddTitle">
+    <h3 id="batchAddTitle">批次新增</h3>
+    <p class="template-manage-sub">
+      貼上一整篇文字，系統會依「說明文字＋網址」的段落結構自動拆解成多筆連結；
+      段落最後一行不是網址的（例如前言），會自動忽略不列入。
+    </p>
+
+    <label>
+      分類（必填，這次貼上的內容全部套用同一個分類）
+      <select id="batchCategorySelect" required>
+        <option value="report">檢舉貼文</option>
+        <option value="share">按讚分享貼文</option>
+      </select>
+    </label>
+
+    <label>
+      貼上原文
+      <textarea id="batchRawTextInput" rows="8" placeholder="貼上一整篇文字，段落之間空一行"></textarea>
+    </label>
+
+    <div class="modal-actions" style="justify-content:flex-start;">
+      <button type="button" class="btn btn-ghost" id="btnAnalyzeBatch">分析</button>
+    </div>
+
+    <div id="batchResultSection" hidden>
+      <h4 class="template-section-title">分析結果（可個別修改標題／社群類型／網址，或刪除不需要的項目）</h4>
+      <div id="batchResultList" class="batch-result-list"></div>
+      <p class="empty-hint" id="batchResultEmpty" hidden>沒有解析出任何一筆連結，請確認格式是否為「說明文字＋網址」並用空白行分段。</p>
+    </div>
+
+    <p class="form-error" id="batchAddError" hidden></p>
+
+    <div class="modal-actions">
+      <button type="button" class="btn btn-ghost" id="btnCancelBatchAdd">取消</button>
+      <button type="button" class="btn btn-primary" id="btnConfirmBatchAdd" hidden>確認新增全部</button>
+    </div>
   </div>
 </div>
 

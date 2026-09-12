@@ -724,3 +724,55 @@ button{ font-family:inherit; cursor:pointer; }
 }
 
 .share-row-delete{ flex-shrink:0; }
+
+.modal-header-row{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:18px;
+}
+.modal-header-row h3{ margin-bottom:0; }
+
+.btn-small{
+  font-size:12.5px;
+  padding:6px 12px;
+}
+
+.batch-result-list{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+  margin-top:10px;
+}
+
+.batch-result-row{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  padding:10px;
+  border:1px solid var(--line);
+  border-radius:10px;
+  background:#fff;
+}
+.batch-title-input{
+  margin-top:0;
+  font-weight:600;
+}
+.batch-row-bottom{
+  display:flex;
+  gap:8px;
+  align-items:center;
+}
+.batch-url-input{
+  flex:1;
+  min-width:0;
+  margin-top:0;
+  font-size:12px;
+  color:var(--ink-soft);
+}
+.batch-platform-select{
+  margin-top:0;
+  width:110px;
+  flex-shrink:0;
+}
+.batch-delete-btn{ flex-shrink:0; }
