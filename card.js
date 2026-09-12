@@ -70,10 +70,16 @@
     }
   }
 
+  let 範例載入中 = false; // 進行中鎖：避免快速連續點擊重選時，釋放跟抽新句子的空窗期重疊，導致有句子洩漏卡在已使用狀態
+
   async function loadRandomExample(groupId) {
-    await 釋放目前範例();
-    exampleText.textContent = '載入中…';
+    if (範例載入中) return; // 上一次還沒處理完，這次點擊直接忽略
+    範例載入中 = true;
+    btnRerollExample.disabled = true;
+
     try {
+      await 釋放目前範例();
+      exampleText.textContent = '載入中…';
       const res = await fetch(`${API_URL}/api/comment-templates/random?group_id=${groupId}`);
       const data = await res.json();
       if (data) {
@@ -87,6 +93,9 @@
     } catch (err) {
       currentExample = null;
       exampleText.textContent = '載入失敗，請稍後再試';
+    } finally {
+      範例載入中 = false;
+      btnRerollExample.disabled = false;
     }
   }
 
