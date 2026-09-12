@@ -754,25 +754,30 @@ button{ font-family:inherit; cursor:pointer; }
   border-radius:10px;
   background:#fff;
 }
-.batch-title-input{
+.batch-result-row .batch-title-input{
+  width:100%;
   margin-top:0;
   font-weight:600;
+  box-sizing:border-box;
 }
-.batch-row-bottom{
+.batch-result-row .batch-row-bottom{
   display:flex;
   gap:8px;
   align-items:center;
 }
-.batch-url-input{
-  flex:1;
+.batch-result-row .batch-row-bottom .batch-url-input{
+  width:auto;
+  flex:1 1 0%;
   min-width:0;
   margin-top:0;
   font-size:12px;
   color:var(--ink-soft);
+  box-sizing:border-box;
 }
-.batch-platform-select{
-  margin-top:0;
+.batch-result-row .batch-row-bottom .batch-platform-select{
   width:110px;
-  flex-shrink:0;
+  flex:0 0 110px;
+  margin-top:0;
+  box-sizing:border-box;
 }
-.batch-delete-btn{ flex-shrink:0; }
+.batch-result-row .batch-row-bottom .batch-delete-btn{ flex-shrink:0; }
