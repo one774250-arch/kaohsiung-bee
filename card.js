@@ -28,6 +28,7 @@
   const exampleText = document.getElementById('exampleText');
   const btnRerollExample = document.getElementById('btnRerollExample');
   const btnGotoUrl = document.getElementById('btnGotoUrl');
+  const btnGotoUrlNoComment = document.getElementById('btnGotoUrlNoComment');
   const btnCopyExample = document.getElementById('btnCopyExample');
 
   const copyConfirmBackdrop = document.getElementById('copyConfirmBackdrop');
@@ -110,6 +111,25 @@
   btnGotoUrl.addEventListener('click', async () => {
     if (!linkData) return;
     if (currentExample) currentExampleConfirmed = true; // 按下前往網址，這句話真正確定被使用掉
+    window.open(linkData.url, '_blank', 'noopener');
+    try {
+      await fetch(`${API_URL}/api/links/${linkData.id}/read`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ device_id: deviceId }),
+      });
+    } catch (err) {
+      // 標記失敗不影響使用者繼續操作
+    }
+  });
+
+  btnGotoUrlNoComment.addEventListener('click', async () => {
+    if (!linkData) return;
+    // 不打算使用這句範例，明確標記為「未鎖定」，讓 釋放目前範例() 把它還給資源池
+    currentExampleConfirmed = false;
+    await 釋放目前範例();
+    exampleText.textContent = '（已跳過，未使用這句範例）';
+
     window.open(linkData.url, '_blank', 'noopener');
     try {
       await fetch(`${API_URL}/api/links/${linkData.id}/read`, {
