@@ -23,6 +23,7 @@
   const cardPageBox = document.getElementById('cardPageBox');
   const cardPageTitle = document.getElementById('cardPageTitle');
   const cardPageMeta = document.getElementById('cardPageMeta');
+  const cardPageReadTag = document.getElementById('cardPageReadTag');
 
   const exampleGroupSelect = document.getElementById('exampleGroupSelect');
   const exampleText = document.getElementById('exampleText');
@@ -53,6 +54,26 @@
     return String(str)
       .replace(/&/g, '&amp;').replace(/</g, '&lt;')
       .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  function 更新已點閱標籤(isRead) {
+    cardPageReadTag.textContent = isRead ? '已點閱' : '尚未點閱';
+    cardPageReadTag.className = 'read-tag ' + (isRead ? 'read' : 'unread');
+  }
+
+  async function 標記此裝置已點閱() {
+    if (!linkData) return;
+    // 先讓畫面立刻反應（樂觀更新），再送出真正的請求
+    更新已點閱標籤(true);
+    try {
+      await fetch(`${API_URL}/api/links/${linkData.id}/read`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ device_id: deviceId }),
+      });
+    } catch (err) {
+      // 標記失敗不影響使用者繼續操作，畫面上已經先顯示已點閱
+    }
   }
 
   async function 釋放目前範例() {
@@ -112,15 +133,7 @@
     if (!linkData) return;
     if (currentExample) currentExampleConfirmed = true; // 按下前往網址，這句話真正確定被使用掉
     window.open(linkData.url, '_blank', 'noopener');
-    try {
-      await fetch(`${API_URL}/api/links/${linkData.id}/read`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ device_id: deviceId }),
-      });
-    } catch (err) {
-      // 標記失敗不影響使用者繼續操作
-    }
+    await 標記此裝置已點閱();
   });
 
   btnGotoUrlNoComment.addEventListener('click', async () => {
@@ -131,15 +144,7 @@
     exampleText.textContent = '（已跳過，未使用這句範例）';
 
     window.open(linkData.url, '_blank', 'noopener');
-    try {
-      await fetch(`${API_URL}/api/links/${linkData.id}/read`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ device_id: deviceId }),
-      });
-    } catch (err) {
-      // 標記失敗不影響使用者繼續操作
-    }
+    await 標記此裝置已點閱();
   });
 
   btnCopyExample.addEventListener('click', () => {
@@ -191,13 +196,14 @@
     }
 
     try {
-      const linkRes = await fetch(`${API_URL}/api/links/${LINK_ID}`);
+      const linkRes = await fetch(`${API_URL}/api/links/${LINK_ID}?device_id=${encodeURIComponent(deviceId)}`);
       if (!linkRes.ok) throw new Error('not found');
       linkData = await linkRes.json();
 
       cardPageTitle.textContent = linkData.title || '（未取得標題）';
       const platformLabel = PLATFORM_LABEL[linkData.platform] || linkData.platform;
       cardPageMeta.textContent = `${platformLabel}　由 ${linkData.creator_name || '匿名'} 新增`;
+      更新已點閱標籤(!!linkData.is_read); // 頁面一載入就先反映這個裝置真正的歷史點閱狀態
 
       const groupRes = await fetch(`${API_URL}/api/comment-groups?link_id=${LINK_ID}`);
       const groups = await groupRes.json();

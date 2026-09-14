@@ -124,10 +124,12 @@ def 查詢連結API():
 
 @app.route("/api/links/<int:link_id>", methods=["GET"])
 def 查詢單筆連結API(link_id):
-    link = 取得單筆連結(link_id)
+    device_id = request.args.get("device_id", "")
+    link = 取得單筆連結(link_id, device_id)
     if not link:
         return jsonify({"error": "找不到這筆連結，可能已被刪除"}), 404
     link["created_at"] = link["created_at"].isoformat() if link["created_at"] else None
+    link.setdefault("is_read", False)
     return jsonify(link)
 
 

@@ -32,11 +32,18 @@
     border-radius:14px;
     padding:20px 22px;
   }
+  .card-page-title-row{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    gap:10px;
+    margin-bottom:6px;
+  }
   .card-page-title{
     font-size:15px;
     font-weight:600;
     color:var(--ink);
-    margin:0 0 6px;
+    margin:0;
   }
   .card-page-meta{
     font-size:12px;
@@ -62,7 +69,10 @@
   <div id="cardPageError" class="card-page-error" hidden>找不到這張卡片，可能已經被刪除。</div>
 
   <div id="cardPageBox" class="card-page-box" hidden>
-    <p class="card-page-title" id="cardPageTitle"></p>
+    <div class="card-page-title-row">
+      <p class="card-page-title" id="cardPageTitle"></p>
+      <span class="read-tag unread" id="cardPageReadTag">尚未點閱</span>
+    </div>
     <p class="card-page-meta" id="cardPageMeta"></p>
 
     <label>

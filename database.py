@@ -214,13 +214,26 @@ def 取得連結網址(link_id):
     return row[0] if row else None
 
 
-def 取得單筆連結(link_id):
+def 取得單筆連結(link_id, device_id=None):
+    """device_id 有給的話，會一併查詢這個裝置對這筆連結的已讀狀態（is_read）；
+    沒給（例如 /go、/card 頁面伺服器端渲染時使用）就只回傳連結本身的資料，不含 is_read。"""
     conn = 取得連線()
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    cur.execute("""
-        SELECT id, category, platform, url, title, creator_name, created_at, is_priority
-        FROM links WHERE id = %s
-    """, (link_id,))
+
+    if device_id:
+        cur.execute("""
+            SELECT l.id, l.category, l.platform, l.url, l.title, l.creator_name, l.created_at, l.is_priority,
+                   CASE WHEN r.id IS NULL THEN FALSE ELSE TRUE END AS is_read
+            FROM links l
+            LEFT JOIN link_reads r ON r.link_id = l.id AND r.device_id = %s
+            WHERE l.id = %s
+        """, (device_id, link_id))
+    else:
+        cur.execute("""
+            SELECT id, category, platform, url, title, creator_name, created_at, is_priority
+            FROM links WHERE id = %s
+        """, (link_id,))
+
     row = cur.fetchone()
     cur.close()
     conn.close()
