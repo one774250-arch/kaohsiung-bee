@@ -180,6 +180,7 @@
   let exampleLink = null;             // 目前開啟「留言範例」彈窗的卡片
   let currentExample = null;          // 目前彈窗顯示的範例 { id, content } 或 null
   let currentExampleConfirmed = false; // 是否已經按過「前往網址」，鎖定為真正已使用，不會再被釋放
+  let 已複製目前範例 = false;          // 是否已經按過「複製」並確認，決定「前往網址」是否解鎖
 
   // ---------- 分享功能：狀態 ----------
   let shareMode = false; // 是否處於「分享：選取卡片」模式
@@ -1320,6 +1321,7 @@
     exampleLink = item;
     currentExample = null;
     currentExampleConfirmed = false;
+    已複製目前範例 = false;
     exampleText.textContent = '載入中…';
     exampleBackdrop.hidden = false;
 
@@ -1354,6 +1356,7 @@
       if (data) {
         currentExample = data;
         currentExampleConfirmed = false;
+        已複製目前範例 = false;
         exampleText.textContent = data.content;
       } else {
         currentExample = null;
@@ -1376,11 +1379,45 @@
     if (exampleGroupSelect.value) loadRandomExample(exampleGroupSelect.value);
   });
 
+  async function 執行前往網址(要鎖定) {
+    const 目前範例 = currentExample; // 快照，避免非同步過程中被其他操作改變
+    const link = exampleLink;
+
+    window.open(link.url, '_blank', 'noopener');
+    markRead(link);
+
+    if (目前範例 && 要鎖定) {
+      if (currentExample === 目前範例) currentExampleConfirmed = true;
+      try {
+        await fetch(`${API_URL}/api/comment-templates/${目前範例.id}/confirm`, { method: 'POST' });
+      } catch (err) {
+        // 確認請求失敗也沒關係，最多讓伺服器端的逾時回收機制晚一點才能把這句收回去，不影響正確性
+      }
+    }
+  }
+
+  const gotoWarningBackdrop = document.getElementById('gotoWarningBackdrop');
+  const btnCancelGotoWarning = document.getElementById('btnCancelGotoWarning');
+  const btnConfirmGotoWarning = document.getElementById('btnConfirmGotoWarning');
+
   btnGotoUrl.addEventListener('click', () => {
     if (!exampleLink) return;
-    if (currentExample) currentExampleConfirmed = true; // 按下前往網址，這句話真正確定被使用掉
-    window.open(exampleLink.url, '_blank', 'noopener');
-    markRead(exampleLink);
+
+    if (currentExample && !已複製目前範例) {
+      // 還沒複製確認過，先跳出提醒，不直接前往
+      gotoWarningBackdrop.hidden = false;
+      return;
+    }
+    執行前往網址(true);
+  });
+
+  btnCancelGotoWarning.addEventListener('click', () => {
+    gotoWarningBackdrop.hidden = true;
+  });
+
+  btnConfirmGotoWarning.addEventListener('click', () => {
+    gotoWarningBackdrop.hidden = true;
+    執行前往網址(false); // 使用者選擇仍要前往，但沒複製過就不鎖定這句範例
   });
 
   btnCopyExample.addEventListener('click', () => {
@@ -1396,17 +1433,23 @@
 
   btnConfirmCopy.addEventListener('click', async () => {
     if (!currentExample) { copyConfirmBackdrop.hidden = true; return; }
-    const { content } = currentExample;
+    const 目前範例 = currentExample; // 快照，避免複製過程中使用者剛好換了別句
+    const { content } = 目前範例;
 
     try {
       await navigator.clipboard.writeText(content);
     } catch (err) {
       // 部分瀏覽器/非 HTTPS 環境可能無法使用剪貼簿 API，不中斷流程
     }
-    // 這句在顯示出來的時候就已經標記為已使用了，這裡不用再額外呼叫 API 標記
+    // 單純「複製」這個動作不會標記為已使用，只是解鎖「前往網址」而已
 
     copyConfirmBackdrop.hidden = true;
     toast('已複製留言');
+
+    // 只有還是同一句時才記錄「已複製確認過」，避免確認視窗開著的期間使用者已經換了下一句
+    if (currentExample === 目前範例) {
+      已複製目前範例 = true;
+    }
     // 複製後維持顯示原本這句，不自動重選；要換下一句需要使用者自己按「重選」
   });
 

@@ -110,6 +110,18 @@
   </div>
 </div>
 
+<!-- 尚未複製就按前往網址的提醒 Modal -->
+<div class="modal-backdrop" id="gotoWarningBackdrop" hidden>
+  <div class="modal modal-small" role="dialog" aria-modal="true" aria-labelledby="gotoWarningTitle">
+    <h3 id="gotoWarningTitle">尚未複製留言</h3>
+    <p class="confirm-text">你還沒有複製這句留言，確定要直接前往網址嗎？（這句範例不會被標記為已使用）</p>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-ghost" id="btnCancelGotoWarning">取消</button>
+      <button type="button" class="btn btn-primary" id="btnConfirmGotoWarning">仍要前往</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast" hidden></div>
 
 <script src="/card.js"></script>
