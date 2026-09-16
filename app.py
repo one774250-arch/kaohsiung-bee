@@ -7,7 +7,7 @@ from database import (
     ALLOWED_CATEGORY, ALLOWED_PLATFORM,
     新增組別, 取得卡片組別, 刪除組別,
     新增留言範例列表, 取得組別範例, 更新留言範例, 刪除留言範例,
-    取得並鎖定隨機範例, 釋放範例,
+    取得並鎖定隨機範例, 釋放範例, 確認範例已使用, 取得卡片留言使用統計,
     新增常用文字, 取得常用文字清單, 刪除常用文字,
 )
 from fetch_title import 抓取標題
@@ -380,6 +380,24 @@ def 隨機範例API():
 def 釋放範例API(template_id):
     釋放範例(template_id)  # 找不到也視為成功（可能已經被刪除），不需要特別擋
     return jsonify({"ok": True})
+
+
+@app.route("/api/comment-templates/<int:template_id>/confirm", methods=["POST"])
+def 確認範例已使用API(template_id):
+    data = request.get_json(force=True, silent=True) or {}
+    device_id = data.get("device_id")
+    確認範例已使用(template_id, device_id)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/links/<int:link_id>/comment-usage-stats", methods=["POST"])
+def 查詢卡片留言使用統計API(link_id):
+    # 這是後台管理用的資訊，跟留言設定其他管理動作一樣需要密碼
+    data = request.get_json(force=True, silent=True) or {}
+    if not 留言設定密碼正確(data):
+        return jsonify({"error": "密碼錯誤"}), 403
+    stats = 取得卡片留言使用統計(link_id)
+    return jsonify(stats)
 
 
 # ==================== 分享功能：常用文字 ====================
