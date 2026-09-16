@@ -973,6 +973,7 @@
 
   const templateManageBackdrop = document.getElementById('templateManageBackdrop');
   const templateManageLinkTitle = document.getElementById('templateManageLinkTitle');
+  const templateUsageStats = document.getElementById('templateUsageStats');
   const templateGroupList = document.getElementById('templateGroupList');
   const newGroupNameInput = document.getElementById('newGroupNameInput');
   const btnAddGroup = document.getElementById('btnAddGroup');
@@ -1075,6 +1076,7 @@
     managingLink = item;
     selectedGroupId = null;
     templateManageLinkTitle.textContent = item.title || item.url;
+    templateUsageStats.textContent = '使用統計載入中…';
     templateManageError.hidden = true;
     templateGroupDetail.hidden = true;
     rawTextInput.value = '';
@@ -1082,6 +1084,26 @@
     splitConfirmRow.hidden = true;
     templateManageBackdrop.hidden = false;
     await loadManagingGroups();
+    await loadUsageStats();
+  }
+
+  async function loadUsageStats() {
+    try {
+      const res = await fetch(`${API_URL}/api/links/${managingLink.id}/comment-usage-stats`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: commentSettingsPassword }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        templateUsageStats.textContent = '';
+        return;
+      }
+      templateUsageStats.textContent =
+        `使用統計：這張卡片的留言範例，總共被 ${data.distinct_devices} 個不同裝置複製使用過（共 ${data.total_confirmed} 句已確認使用）`;
+    } catch (err) {
+      templateUsageStats.textContent = '';
+    }
   }
 
   async function loadManagingGroups() {
@@ -1389,7 +1411,11 @@
     if (目前範例 && 要鎖定) {
       if (currentExample === 目前範例) currentExampleConfirmed = true;
       try {
-        await fetch(`${API_URL}/api/comment-templates/${目前範例.id}/confirm`, { method: 'POST' });
+        await fetch(`${API_URL}/api/comment-templates/${目前範例.id}/confirm`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ device_id: deviceId }),
+        });
       } catch (err) {
         // 確認請求失敗也沒關係，最多讓伺服器端的逾時回收機制晚一點才能把這句收回去，不影響正確性
       }

@@ -141,7 +141,11 @@
     if (目前範例 && 要鎖定) {
       if (currentExample === 目前範例) currentExampleConfirmed = true;
       try {
-        await fetch(`${API_URL}/api/comment-templates/${目前範例.id}/confirm`, { method: 'POST' });
+        await fetch(`${API_URL}/api/comment-templates/${目前範例.id}/confirm`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ device_id: deviceId }),
+        });
       } catch (err) {
         // 確認請求失敗也沒關係，最多讓伺服器端的逾時回收機制晚一點才能把這句收回去，不影響正確性
       }
