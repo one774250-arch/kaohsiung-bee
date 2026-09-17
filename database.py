@@ -402,7 +402,12 @@ def 取得並鎖定隨機範例(group_id, 逾時秒數=範例逾時秒數):
 def 確認範例已使用(template_id, device_id=None):
     """按下「前往網址」（且已經先複製過）時呼叫：把這句範例標記為「真正確認使用」，
     之後就算逾時，也不會被自動逾時回收機制收回去，永久維持已使用狀態。
-    一併記錄是哪個裝置確認的，供後台統計「這張卡片被幾個不同裝置使用過」參考。"""
+    一併記錄是哪個裝置確認的，供後台統計「這張卡片被幾個不同裝置使用過」參考。
+
+    同時在這裡順便把這個裝置標記為「已點閱這張卡片」——原本前端「標記已點閱」跟
+    「確認使用範例」是兩個各自獨立送出的網路請求，其中一個網路不穩失敗的話，
+    就會讓「確認使用數」跟主看板的「點擊數」兩個統計數字不同步。這裡直接在
+    同一次資料庫操作裡一起做，就不會再有這個問題。"""
     conn = 取得連線()
     cur = conn.cursor()
     cur.execute(
@@ -410,6 +415,17 @@ def 確認範例已使用(template_id, device_id=None):
         (device_id, template_id)
     )
     影響筆數 = cur.rowcount
+
+    if 影響筆數 > 0 and device_id:
+        cur.execute("""
+            INSERT INTO link_reads (link_id, device_id)
+            SELECT g.link_id, %s
+            FROM comment_templates t
+            JOIN comment_groups g ON g.id = t.group_id
+            WHERE t.id = %s
+            ON CONFLICT (link_id, device_id) DO NOTHING
+        """, (device_id, template_id))
+
     conn.commit()
     cur.close()
     conn.close()
