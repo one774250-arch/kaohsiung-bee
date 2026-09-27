@@ -169,6 +169,40 @@
   let selectedIds = new Set();
   let currentData = { report: [], share: [], friend: [] };
 
+  // ---------- 留言範本功能：狀態 ----------
+  let commentSettingsPassword = null; // 通過驗證後暫存密碼，關閉留言設定面板後清空
+  let commentSelectMode = false;      // 是否處於「留言設定：選取卡片」模式
+  let managingLink = null;            // 目前在範本管理畫面裡編輯的卡片
+  let managingGroups = [];            // 該卡片的組別清單
+  let selectedGroupId = null;         // 範本管理畫面裡目前選中的組別
+  let existingTemplates = [];         // 目前選中組別的既有範例（管理畫面用）
+
+  let exampleLink = null;             // 目前開啟「留言範例」彈窗的卡片
+  let currentExample = null;          // 目前彈窗顯示的範例 { id, content } 或 null
+  let currentExampleConfirmed = false; // 是否已經按過「前往網址」，鎖定為真正已使用，不會再被釋放
+  let 已複製目前範例 = false;          // 是否已經按過「複製」並確認，決定「前往網址」是否解鎖
+
+  // ---------- 分享功能：狀態 ----------
+  let shareMode = false; // 是否處於「分享：選取卡片」模式
+
+  const btnEnterShare = document.getElementById('btnEnterShare');
+  const shareActions = document.getElementById('shareActions');
+  const shareSelectCount = document.getElementById('shareSelectCount');
+  const btnConfirmShare = document.getElementById('btnConfirmShare');
+  const btnCancelShare = document.getElementById('btnCancelShare');
+
+  const shareComposeBackdrop = document.getElementById('shareComposeBackdrop');
+  const shareRowList = document.getElementById('shareRowList');
+  const btnAddTextRow = document.getElementById('btnAddTextRow');
+  const btnCopyShareCompose = document.getElementById('btnCopyShareCompose');
+  const quickPhraseList = document.getElementById('quickPhraseList');
+  const newQuickPhraseInput = document.getElementById('newQuickPhraseInput');
+  const btnAddQuickPhrase = document.getElementById('btnAddQuickPhrase');
+  const btnCloseShareCompose = document.getElementById('btnCloseShareCompose');
+
+  let shareComposeRows = []; // [{ id, url, title, isPlainText }]
+  let shareRowIdCounter = 0;
+
   // ---------- 工具函式 ----------
   function toast(msg) {
     toastEl.textContent = msg;
@@ -216,7 +250,9 @@
 
   function renderCard(item, seq) {
     const card = document.createElement('div');
-    card.className = 'card' + (selectedIds.has(item.id) ? ' selected' : '') + (editMode ? ' editable' : '');
+    card.className = 'card'
+      + (selectedIds.has(item.id) ? ' selected' : '')
+      + (editMode || commentSelectMode ? ' editable' : '');
     card.dataset.id = item.id;
 
     const creator = item.creator_name ? escapeHtml(item.creator_name) : '匿名';
@@ -226,13 +262,16 @@
     const titleClass = item.title ? '' : ' no-title';
     const clickCount = item.click_count || 0;
     const dateLabel = item.created_at ? 轉為民國日期(new Date(item.created_at)) : '';
+    const 一般瀏覽模式 = !deleteMode && !editMode && !commentSelectMode && !shareMode;
+    const 顯示核取方塊 = deleteMode || shareMode;
 
     card.innerHTML = `
       <span class="seq-badge">${seq}</span>
-      ${deleteMode ? `<input type="checkbox" class="card-check" ${selectedIds.has(item.id) ? 'checked' : ''}>` : ''}
+      ${顯示核取方塊 ? `<input type="checkbox" class="card-check" ${selectedIds.has(item.id) ? 'checked' : ''}>` : ''}
       <div class="card-body">
         <div class="card-title-row">
           ${item.is_priority ? '<span class="priority-badge">優先</span>' : ''}
+          ${((commentSelectMode || shareMode) && item.has_comment_templates) ? '<span class="has-template-badge">✓ 已建立留言範例</span>' : ''}
           <a class="card-title${titleClass}" href="${escapeHtml(item.url)}" target="_blank" rel="noopener">${titleText}</a>
         </div>
         <p class="card-meta">
@@ -242,15 +281,17 @@
           <span>${dateLabel}</span>
           <span class="click-count">點擊 ${clickCount} 次</span>
         </p>
+        ${(一般瀏覽模式 && item.has_comment_templates) ? '<button type="button" class="btn-example">💬 留言範例</button>' : ''}
       </div>
-      ${(deleteMode || editMode) ? '' : `<span class="read-tag ${item.is_read ? 'read' : 'unread'}">${item.is_read ? '已點閱' : '尚未點閱'}</span>`}
+      ${一般瀏覽模式 ? `<span class="read-tag ${item.is_read ? 'read' : 'unread'}">${item.is_read ? '已點閱' : '尚未點閱'}</span>` : ''}
     `;
 
     const link = card.querySelector('.card-title');
     const checkbox = card.querySelector('.card-check');
+    const exampleBtn = card.querySelector('.btn-example');
 
-    if (deleteMode) {
-      // 刪除模式下，只有核取方塊本身可以切換勾選，點卡片其他地方不會有反應
+    if (deleteMode || shareMode) {
+      // 刪除／分享模式下，只有核取方塊本身可以切換勾選，點卡片其他地方不會有反應
       checkbox.addEventListener('change', () => toggleSelect(item.id, card, checkbox));
     } else if (editMode) {
       // 修改模式下，點卡片（含標題）直接開啟修改視窗，不會另外開新分頁
@@ -262,8 +303,21 @@
         if (e.target === link) return; // 已由上面的 link 監聽器處理，避免重複觸發
         openEditModal(item);
       });
+    } else if (commentSelectMode) {
+      // 留言設定：選取卡片模式，點卡片直接開啟該卡片的範本管理畫面
+      link.addEventListener('click', (e) => {
+        e.preventDefault();
+        selectCardForCommentSettings(item);
+      });
+      card.addEventListener('click', (e) => {
+        if (e.target === link) return;
+        selectCardForCommentSettings(item);
+      });
     } else {
       link.addEventListener('click', () => markRead(item));
+      if (exampleBtn) {
+        exampleBtn.addEventListener('click', () => openExampleModal(item));
+      }
     }
 
     return card;
@@ -282,6 +336,7 @@
 
   function updateSelectCount() {
     selectCountEl.textContent = `已選取 ${selectedIds.size} 筆`;
+    if (shareSelectCount) shareSelectCount.textContent = `已選取 ${selectedIds.size} 筆`;
   }
 
   // ---------- 標記已點閱 ----------
@@ -414,7 +469,7 @@
             <option value="news">新聞網</option>
             <option value="other">其他</option>
           </select>
-          <button type="button" class="batch-delete-btn" title="刪除這一筆">🗑</button>
+          <button type="button" class="btn-icon batch-delete-btn" title="刪除這一筆">🗑</button>
         </div>
       `;
       row.querySelector('.batch-platform-select').value = item.platform;
@@ -705,6 +760,729 @@
     } finally {
       btnDoDelete.disabled = false;
     }
+  });
+
+  // ==================== 分享功能 ====================
+
+  function enterShareMode() {
+    shareMode = true;
+    selectedIds.clear();
+    updateSelectCount();
+    normalActions.hidden = true;
+    shareActions.hidden = false;
+    render();
+  }
+
+  function exitShareMode() {
+    shareMode = false;
+    selectedIds.clear();
+    shareActions.hidden = true;
+    normalActions.hidden = false;
+    render();
+  }
+
+  btnEnterShare.addEventListener('click', enterShareMode);
+  btnCancelShare.addEventListener('click', exitShareMode);
+
+  function 取得已選取的卡片() {
+    const all = [
+      ...(currentData.report || []),
+      ...(currentData.share || []),
+      ...(currentData.friend || []),
+    ];
+    return all.filter(item => selectedIds.has(item.id));
+  }
+
+  btnConfirmShare.addEventListener('click', () => {
+    if (selectedIds.size === 0) {
+      toast('請先選取要分享的卡片');
+      return;
+    }
+    const items = 取得已選取的卡片();
+    exitShareMode();
+    openShareCompose(items);
+  });
+
+  function 產生隨機快取參數() {
+    // 每次分享都用一個全新的參數，讓 LINE 等平台的預覽機器人把它當成新網址重新抓取，
+    // 不會沿用之前抓過的舊快取（例如標題還沒修好之前抓到的版本）
+    return Math.random().toString(36).slice(2, 8) + Date.now().toString(36);
+  }
+
+  async function openShareCompose(items) {
+    shareComposeRows = items.map(item => ({
+      id: ++shareRowIdCounter,
+      // 有留言範例的卡片，導向卡片獨立頁面（裡面可以直接使用留言範例功能）；
+      // 沒有的話維持原本的轉址頁面（先記錄已點閱，再跳轉外部網址）
+      url: item.has_comment_templates
+        ? `${API_URL}/card/${item.id}?v=${產生隨機快取參數()}`
+        : `${API_URL}/go/${item.id}?v=${產生隨機快取參數()}`,
+      title: item.title || null,
+      isPlainText: false,
+    }));
+    renderShareRows();
+    shareComposeBackdrop.hidden = false;
+    await loadQuickPhrases();
+  }
+
+  function renderShareRows() {
+    shareRowList.innerHTML = '';
+    shareComposeRows.forEach((row, index) => {
+      const rowEl = document.createElement('div');
+      rowEl.className = 'share-row';
+      rowEl.innerHTML = `
+        <div class="share-row-move">
+          <button type="button" class="btn-icon share-move-up" title="往上移" ${index === 0 ? 'disabled' : ''}>▲</button>
+          <button type="button" class="btn-icon share-move-down" title="往下移" ${index === shareComposeRows.length - 1 ? 'disabled' : ''}>▼</button>
+        </div>
+        <textarea rows="1" class="share-row-input">${escapeHtml(row.url)}</textarea>
+        <span class="share-row-title">${row.title ? escapeHtml(row.title) : (row.isPlainText ? '' : '（未取得標題）')}</span>
+        <button type="button" class="btn-icon share-row-delete" title="刪除這一行">🗑</button>
+      `;
+
+      rowEl.querySelector('.share-row-input').addEventListener('input', (e) => {
+        row.url = e.target.value; // 只更新資料，不重新渲染，避免打字時游標跳動
+      });
+      rowEl.querySelector('.share-move-up').addEventListener('click', () => 移動分享行(index, -1));
+      rowEl.querySelector('.share-move-down').addEventListener('click', () => 移動分享行(index, 1));
+      rowEl.querySelector('.share-row-delete').addEventListener('click', () => {
+        shareComposeRows.splice(index, 1);
+        renderShareRows();
+      });
+
+      shareRowList.appendChild(rowEl);
+    });
+  }
+
+  function 移動分享行(index, delta) {
+    const targetIndex = index + delta;
+    if (targetIndex < 0 || targetIndex >= shareComposeRows.length) return;
+    // 交換兩行的順序；因為標題是跟著該行的資料物件一起移動，不會脫勾
+    const temp = shareComposeRows[index];
+    shareComposeRows[index] = shareComposeRows[targetIndex];
+    shareComposeRows[targetIndex] = temp;
+    renderShareRows();
+  }
+
+  btnAddTextRow.addEventListener('click', () => {
+    shareComposeRows.push({ id: ++shareRowIdCounter, url: '', title: null, isPlainText: true });
+    renderShareRows();
+    const inputs = shareRowList.querySelectorAll('.share-row-input');
+    if (inputs.length) inputs[inputs.length - 1].focus();
+  });
+
+  async function loadQuickPhrases() {
+    quickPhraseList.innerHTML = '載入中…';
+    try {
+      const res = await fetch(`${API_URL}/api/quick-phrases`);
+      const phrases = await res.json();
+      renderQuickPhraseList(phrases);
+    } catch (err) {
+      quickPhraseList.innerHTML = '';
+      toast('常用文字載入失敗');
+    }
+  }
+
+  function renderQuickPhraseList(phrases) {
+    quickPhraseList.innerHTML = '';
+    if (phrases.length === 0) {
+      quickPhraseList.innerHTML = '<p class="empty-hint">還沒有任何常用文字，可以在下方新增。</p>';
+      return;
+    }
+    phrases.forEach((p) => {
+      const chip = document.createElement('div');
+      chip.className = 'quick-phrase-chip';
+      chip.innerHTML = `
+        <span class="quick-phrase-text">${escapeHtml(p.content)}</span>
+        <button type="button" class="btn-icon quick-phrase-delete" title="刪除">✕</button>
+      `;
+      chip.querySelector('.quick-phrase-text').addEventListener('click', () => {
+        // 常用文字以新增一行文字行的方式加到清單最下方
+        shareComposeRows.push({ id: ++shareRowIdCounter, url: p.content, title: null, isPlainText: true });
+        renderShareRows();
+      });
+      chip.querySelector('.quick-phrase-delete').addEventListener('click', async (e) => {
+        e.stopPropagation();
+        if (!confirm('確定刪除這則常用文字嗎？')) return;
+        try {
+          const res = await fetch(`${API_URL}/api/quick-phrases/${p.id}`, { method: 'DELETE' });
+          if (!res.ok) throw new Error();
+          await loadQuickPhrases();
+        } catch (err) {
+          toast('刪除失敗');
+        }
+      });
+      quickPhraseList.appendChild(chip);
+    });
+  }
+
+  btnAddQuickPhrase.addEventListener('click', async () => {
+    const content = newQuickPhraseInput.value.trim();
+    if (!content) {
+      toast('請輸入內容');
+      return;
+    }
+    try {
+      const res = await fetch(`${API_URL}/api/quick-phrases`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast(data.error || '新增失敗');
+        return;
+      }
+      newQuickPhraseInput.value = '';
+      await loadQuickPhrases();
+      toast('已新增常用文字');
+    } catch (err) {
+      toast('新增失敗，請稍後再試');
+    }
+  });
+
+  btnCopyShareCompose.addEventListener('click', async () => {
+    const combined = shareComposeRows.map(row => row.url).join('\n');
+    try {
+      await navigator.clipboard.writeText(combined);
+      toast('已複製到剪貼簿');
+    } catch (err) {
+      toast('複製失敗，請手動選取文字複製');
+    }
+  });
+
+  btnCloseShareCompose.addEventListener('click', () => {
+    shareComposeBackdrop.hidden = true;
+  });
+
+  // ==================== 留言範本功能 ====================
+
+  // ---------- DOM refs ----------
+  const btnCommentSettings = document.getElementById('btnCommentSettings');
+  const commentMenuActions = document.getElementById('commentMenuActions');
+  const commentSelectActions = document.getElementById('commentSelectActions');
+  const btnCommentManage = document.getElementById('btnCommentManage');
+  const btnCommentSettingsClose = document.getElementById('btnCommentSettingsClose');
+  const btnCancelCommentSelect = document.getElementById('btnCancelCommentSelect');
+
+  const commentPasswordBackdrop = document.getElementById('commentPasswordBackdrop');
+  const commentPasswordForm = document.getElementById('commentPasswordForm');
+  const commentPasswordInput = document.getElementById('commentPasswordInput');
+  const commentPasswordError = document.getElementById('commentPasswordError');
+  const btnCancelCommentPassword = document.getElementById('btnCancelCommentPassword');
+
+  const templateManageBackdrop = document.getElementById('templateManageBackdrop');
+  const templateManageLinkTitle = document.getElementById('templateManageLinkTitle');
+  const templateUsageStats = document.getElementById('templateUsageStats');
+  const templateGroupList = document.getElementById('templateGroupList');
+  const newGroupNameInput = document.getElementById('newGroupNameInput');
+  const btnAddGroup = document.getElementById('btnAddGroup');
+  const templateGroupDetail = document.getElementById('templateGroupDetail');
+  const rawTextInput = document.getElementById('rawTextInput');
+  const btnSplitText = document.getElementById('btnSplitText');
+  const splitResultList = document.getElementById('splitResultList');
+  const splitConfirmRow = document.getElementById('splitConfirmRow');
+  const btnConfirmAddSplit = document.getElementById('btnConfirmAddSplit');
+  const existingTemplateList = document.getElementById('existingTemplateList');
+  const existingTemplateEmpty = document.getElementById('existingTemplateEmpty');
+  const btnSaveTemplateEdits = document.getElementById('btnSaveTemplateEdits');
+  const templateManageError = document.getElementById('templateManageError');
+  const btnCloseTemplateManage = document.getElementById('btnCloseTemplateManage');
+
+  const copyConfirmBackdrop = document.getElementById('copyConfirmBackdrop');
+  const copyConfirmText = document.getElementById('copyConfirmText');
+  const btnCancelCopy = document.getElementById('btnCancelCopy');
+  const btnConfirmCopy = document.getElementById('btnConfirmCopy');
+
+  const exampleBackdrop = document.getElementById('exampleBackdrop');
+  const exampleGroupSelect = document.getElementById('exampleGroupSelect');
+  const exampleText = document.getElementById('exampleText');
+  const btnRerollExample = document.getElementById('btnRerollExample');
+  const btnGotoUrl = document.getElementById('btnGotoUrl');
+  const btnCopyExample = document.getElementById('btnCopyExample');
+  const btnCloseExample = document.getElementById('btnCloseExample');
+
+  // ---------- 密碼驗證 ----------
+  btnCommentSettings.addEventListener('click', () => {
+    commentPasswordInput.value = '';
+    commentPasswordError.hidden = true;
+    commentPasswordBackdrop.hidden = false;
+    commentPasswordInput.focus();
+  });
+
+  btnCancelCommentPassword.addEventListener('click', () => {
+    commentPasswordBackdrop.hidden = true;
+  });
+
+  commentPasswordForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    commentPasswordError.hidden = true;
+    const password = commentPasswordInput.value;
+
+    try {
+      const res = await fetch(`${API_URL}/api/comment-settings/verify`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password }),
+      });
+      const data = await res.json();
+      if (!data.ok) {
+        commentPasswordError.textContent = '密碼錯誤，請再試一次';
+        commentPasswordError.hidden = false;
+        return;
+      }
+      commentSettingsPassword = password;
+      commentPasswordBackdrop.hidden = true;
+      normalActions.hidden = true;
+      commentMenuActions.hidden = false;
+    } catch (err) {
+      commentPasswordError.textContent = '連線失敗，請稍後再試';
+      commentPasswordError.hidden = false;
+    }
+  });
+
+  btnCommentSettingsClose.addEventListener('click', () => {
+    // 關閉整個留言設定面板，密碼驗證失效，下次要重新輸入
+    commentSettingsPassword = null;
+    commentMenuActions.hidden = true;
+    normalActions.hidden = false;
+  });
+
+  // ---------- 選取卡片模式 ----------
+  function enterCommentSelectMode() {
+    commentSelectMode = true;
+    commentMenuActions.hidden = true;
+    commentSelectActions.hidden = false;
+    render();
+  }
+
+  function exitCommentSelectMode() {
+    commentSelectMode = false;
+    commentSelectActions.hidden = true;
+    commentMenuActions.hidden = false;
+    render();
+  }
+
+  btnCommentManage.addEventListener('click', enterCommentSelectMode);
+  btnCancelCommentSelect.addEventListener('click', exitCommentSelectMode);
+
+  function selectCardForCommentSettings(item) {
+    exitCommentSelectMode();
+    openTemplateManage(item);
+  }
+
+  // ---------- 範本管理畫面 ----------
+  async function openTemplateManage(item) {
+    managingLink = item;
+    selectedGroupId = null;
+    templateManageLinkTitle.textContent = item.title || item.url;
+    templateUsageStats.textContent = '使用統計載入中…';
+    templateManageError.hidden = true;
+    templateGroupDetail.hidden = true;
+    rawTextInput.value = '';
+    splitResultList.innerHTML = '';
+    splitConfirmRow.hidden = true;
+    templateManageBackdrop.hidden = false;
+    await loadManagingGroups();
+    await loadUsageStats();
+  }
+
+  async function loadUsageStats() {
+    try {
+      const res = await fetch(`${API_URL}/api/links/${managingLink.id}/comment-usage-stats`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: commentSettingsPassword }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        templateUsageStats.textContent = '';
+        return;
+      }
+      templateUsageStats.textContent =
+        `使用統計：這張卡片的留言範例，總共被 ${data.distinct_devices} 個不同裝置複製使用過（共 ${data.total_confirmed} 句已確認使用）`;
+    } catch (err) {
+      templateUsageStats.textContent = '';
+    }
+  }
+
+  async function loadManagingGroups() {
+    try {
+      const res = await fetch(`${API_URL}/api/comment-groups?link_id=${managingLink.id}`);
+      managingGroups = await res.json();
+    } catch (err) {
+      managingGroups = [];
+    }
+    renderGroupList();
+  }
+
+  function renderGroupList() {
+    templateGroupList.innerHTML = '';
+    managingGroups.forEach((g) => {
+      const row = document.createElement('div');
+      row.className = 'group-row' + (g.id === selectedGroupId ? ' selected' : '');
+      row.innerHTML = `
+        <span class="group-name">${escapeHtml(g.name)}</span>
+        <span class="group-count">共 ${g.total_count} 則・未使用 ${g.unused_count} 則</span>
+        <button type="button" class="btn-icon group-delete" title="刪除組別">✕</button>
+      `;
+      row.querySelector('.group-name').addEventListener('click', () => selectGroup(g.id));
+      row.querySelector('.group-count').addEventListener('click', () => selectGroup(g.id));
+      row.querySelector('.group-delete').addEventListener('click', async (e) => {
+        e.stopPropagation();
+        if (!confirm(`確定刪除「${g.name}」這個組別嗎？底下所有範例會一併刪除。`)) return;
+        try {
+          const res = await fetch(`${API_URL}/api/comment-groups/${g.id}`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ password: commentSettingsPassword }),
+          });
+          if (!res.ok) throw new Error();
+          if (selectedGroupId === g.id) {
+            selectedGroupId = null;
+            templateGroupDetail.hidden = true;
+          }
+          await loadManagingGroups();
+          toast('已刪除組別');
+        } catch (err) {
+          toast('刪除組別失敗');
+        }
+      });
+      templateGroupList.appendChild(row);
+    });
+  }
+
+  btnAddGroup.addEventListener('click', async () => {
+    const name = newGroupNameInput.value.trim();
+    if (!name) {
+      toast('請輸入組別名稱');
+      return;
+    }
+    try {
+      const res = await fetch(`${API_URL}/api/comment-groups`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: commentSettingsPassword, link_id: managingLink.id, name }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast(data.error || '新增組別失敗');
+        return;
+      }
+      newGroupNameInput.value = '';
+      await loadManagingGroups();
+      selectGroup(data.id);
+      toast('已新增組別');
+    } catch (err) {
+      toast('新增組別失敗，請稍後再試');
+    }
+  });
+
+  async function selectGroup(groupId) {
+    selectedGroupId = groupId;
+    renderGroupList();
+    templateGroupDetail.hidden = false;
+    rawTextInput.value = '';
+    splitResultList.innerHTML = '';
+    splitConfirmRow.hidden = true;
+    await loadExistingTemplates();
+  }
+
+  async function loadExistingTemplates() {
+    try {
+      const res = await fetch(`${API_URL}/api/comment-templates?group_id=${selectedGroupId}`);
+      existingTemplates = await res.json();
+    } catch (err) {
+      existingTemplates = [];
+    }
+    renderExistingTemplateList();
+  }
+
+  function renderExistingTemplateList() {
+    existingTemplateList.innerHTML = '';
+    existingTemplateEmpty.hidden = existingTemplates.length > 0;
+
+    existingTemplates.forEach((t) => {
+      const row = document.createElement('div');
+      row.className = 'template-row';
+      row.dataset.id = t.id;
+      row.innerHTML = `
+        <textarea rows="2">${escapeHtml(t.content)}</textarea>
+        <button type="button" class="btn-icon template-delete" title="刪除">🗑</button>
+      `;
+      row.querySelector('.template-delete').addEventListener('click', async () => {
+        if (!confirm('確定刪除這則範例嗎？')) return;
+        try {
+          const res = await fetch(`${API_URL}/api/comment-templates/${t.id}`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ password: commentSettingsPassword }),
+          });
+          if (!res.ok) throw new Error();
+          await loadExistingTemplates();
+          await loadManagingGroups();
+          toast('已刪除範例');
+        } catch (err) {
+          toast('刪除失敗');
+        }
+      });
+      existingTemplateList.appendChild(row);
+    });
+  }
+
+  btnSplitText.addEventListener('click', () => {
+    const raw = rawTextInput.value;
+    if (!raw) {
+      toast('請先貼上原文');
+      return;
+    }
+    const segments = raw.split('\n');
+    splitResultList.innerHTML = '';
+    segments.forEach((seg) => {
+      const row = document.createElement('div');
+      row.className = 'template-row';
+      row.innerHTML = `
+        <textarea rows="2">${escapeHtml(seg)}</textarea>
+        <button type="button" class="btn-icon split-delete" title="刪除這一則">🗑</button>
+      `;
+      row.querySelector('.split-delete').addEventListener('click', () => row.remove());
+      splitResultList.appendChild(row);
+    });
+    splitConfirmRow.hidden = segments.length === 0;
+  });
+
+  btnConfirmAddSplit.addEventListener('click', async () => {
+    const contents = Array.from(splitResultList.querySelectorAll('textarea')).map(t => t.value);
+    const 有效內容 = contents.filter(c => c.trim() !== '');
+    if (有效內容.length === 0) {
+      toast('沒有可新增的內容');
+      return;
+    }
+    try {
+      const res = await fetch(`${API_URL}/api/comment-templates/bulk`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: commentSettingsPassword, group_id: selectedGroupId, contents: 有效內容 }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast(data.error || '新增失敗');
+        return;
+      }
+      rawTextInput.value = '';
+      splitResultList.innerHTML = '';
+      splitConfirmRow.hidden = true;
+      await loadExistingTemplates();
+      await loadManagingGroups();
+      toast(`已新增 ${有效內容.length} 則範例`);
+    } catch (err) {
+      toast('新增失敗，請稍後再試');
+    }
+  });
+
+  btnSaveTemplateEdits.addEventListener('click', async () => {
+    const rows = Array.from(existingTemplateList.querySelectorAll('.template-row'));
+    let 成功數 = 0;
+    let 失敗數 = 0;
+
+    for (const row of rows) {
+      const id = row.dataset.id;
+      const original = existingTemplates.find(t => String(t.id) === String(id));
+      const newValue = row.querySelector('textarea').value.trim();
+      if (!original || newValue === original.content) continue; // 沒改變就跳過
+      if (!newValue) { 失敗數++; continue; } // 不允許改成空白
+
+      try {
+        const res = await fetch(`${API_URL}/api/comment-templates/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: commentSettingsPassword, content: newValue }),
+        });
+        if (res.ok) 成功數++; else 失敗數++;
+      } catch (err) {
+        失敗數++;
+      }
+    }
+
+    await loadExistingTemplates();
+    if (成功數 === 0 && 失敗數 === 0) {
+      toast('沒有內容被修改');
+    } else {
+      toast(`已儲存 ${成功數} 則修改${失敗數 > 0 ? `，${失敗數} 則失敗` : ''}`);
+    }
+  });
+
+  btnCloseTemplateManage.addEventListener('click', async () => {
+    templateManageBackdrop.hidden = true;
+    managingLink = null;
+    selectedGroupId = null;
+    await loadLinks(); // 卡片是否顯示「留言範例」按鈕可能已經改變，重新整理看板
+  });
+
+  // ---------- 卡片上的「留言範例」彈窗（公開功能，不需密碼） ----------
+  // 範例一旦被抽到顯示出來，後端就會立刻標記為已使用（搶佔），避免多人同時抽到同一句；
+  // 如果使用者重選、換組別、或關閉視窗卻沒有按下「前往網址」，就要把它釋放回去，才不會白白浪費掉；
+  // 但只要按過一次「前往網址」，就代表這句話真正被拿去用了，之後就永久鎖定為已使用，不會再被釋放
+  async function 釋放目前範例() {
+    if (!currentExample) return;
+    if (currentExampleConfirmed) { // 已鎖定，維持已使用狀態，不釋放
+      currentExample = null;
+      currentExampleConfirmed = false;
+      return;
+    }
+    const id = currentExample.id;
+    currentExample = null;
+    try {
+      await fetch(`${API_URL}/api/comment-templates/${id}/release`, { method: 'POST' });
+    } catch (err) {
+      // 釋放失敗只是那句話暫時無法被別人抽到，不影響目前使用者的操作
+    }
+  }
+
+  async function openExampleModal(item) {
+    exampleLink = item;
+    currentExample = null;
+    currentExampleConfirmed = false;
+    已複製目前範例 = false;
+    exampleText.textContent = '載入中…';
+    exampleBackdrop.hidden = false;
+
+    try {
+      const res = await fetch(`${API_URL}/api/comment-groups?link_id=${item.id}`);
+      const groups = await res.json();
+      exampleGroupSelect.innerHTML = groups
+        .map(g => `<option value="${g.id}">${escapeHtml(g.name)}</option>`)
+        .join('');
+      if (groups.length > 0) {
+        await loadRandomExample(groups[0].id);
+      } else {
+        exampleText.textContent = '無可用的範例';
+      }
+    } catch (err) {
+      exampleText.textContent = '載入失敗，請稍後再試';
+    }
+  }
+
+  let 範例載入中 = false; // 進行中鎖：避免快速連續點擊重選時，釋放跟抽新句子的空窗期重疊，導致有句子洩漏卡在已使用狀態
+
+  async function loadRandomExample(groupId) {
+    if (範例載入中) return; // 上一次還沒處理完，這次點擊直接忽略
+    範例載入中 = true;
+    btnRerollExample.disabled = true;
+
+    try {
+      await 釋放目前範例(); // 換一句之前，先處理手上這句（鎖定的話維持已使用，否則還給資源池）
+      exampleText.textContent = '載入中…';
+      const res = await fetch(`${API_URL}/api/comment-templates/random?group_id=${groupId}`);
+      const data = await res.json();
+      if (data) {
+        currentExample = data;
+        currentExampleConfirmed = false;
+        已複製目前範例 = false;
+        exampleText.textContent = data.content;
+      } else {
+        currentExample = null;
+        exampleText.textContent = '無可用的範例';
+      }
+    } catch (err) {
+      currentExample = null;
+      exampleText.textContent = '載入失敗，請稍後再試';
+    } finally {
+      範例載入中 = false;
+      btnRerollExample.disabled = false;
+    }
+  }
+
+  exampleGroupSelect.addEventListener('change', () => {
+    if (exampleGroupSelect.value) loadRandomExample(exampleGroupSelect.value);
+  });
+
+  btnRerollExample.addEventListener('click', () => {
+    if (exampleGroupSelect.value) loadRandomExample(exampleGroupSelect.value);
+  });
+
+  async function 執行前往網址(要鎖定) {
+    const 目前範例 = currentExample; // 快照，避免非同步過程中被其他操作改變
+    const link = exampleLink;
+
+    window.open(link.url, '_blank', 'noopener');
+    markRead(link);
+
+    if (目前範例 && 要鎖定) {
+      if (currentExample === 目前範例) currentExampleConfirmed = true;
+      try {
+        await fetch(`${API_URL}/api/comment-templates/${目前範例.id}/confirm`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ device_id: deviceId }),
+        });
+      } catch (err) {
+        // 確認請求失敗也沒關係，最多讓伺服器端的逾時回收機制晚一點才能把這句收回去，不影響正確性
+      }
+    }
+  }
+
+  const gotoWarningBackdrop = document.getElementById('gotoWarningBackdrop');
+  const btnCancelGotoWarning = document.getElementById('btnCancelGotoWarning');
+  const btnConfirmGotoWarning = document.getElementById('btnConfirmGotoWarning');
+
+  btnGotoUrl.addEventListener('click', () => {
+    if (!exampleLink) return;
+
+    if (currentExample && !已複製目前範例) {
+      // 還沒複製確認過，先跳出提醒，不直接前往
+      gotoWarningBackdrop.hidden = false;
+      return;
+    }
+    執行前往網址(true);
+  });
+
+  btnCancelGotoWarning.addEventListener('click', () => {
+    gotoWarningBackdrop.hidden = true;
+  });
+
+  btnConfirmGotoWarning.addEventListener('click', () => {
+    gotoWarningBackdrop.hidden = true;
+    執行前往網址(false); // 使用者選擇仍要前往，但沒複製過就不鎖定這句範例
+  });
+
+  btnCopyExample.addEventListener('click', () => {
+    if (!currentExample) {
+      toast('無可用的範例可複製');
+      return;
+    }
+    copyConfirmText.textContent = currentExample.content;
+    copyConfirmBackdrop.hidden = false;
+  });
+
+  btnCancelCopy.addEventListener('click', () => { copyConfirmBackdrop.hidden = true; });
+
+  btnConfirmCopy.addEventListener('click', async () => {
+    if (!currentExample) { copyConfirmBackdrop.hidden = true; return; }
+    const 目前範例 = currentExample; // 快照，避免複製過程中使用者剛好換了別句
+    const { content } = 目前範例;
+
+    try {
+      await navigator.clipboard.writeText(content);
+    } catch (err) {
+      // 部分瀏覽器/非 HTTPS 環境可能無法使用剪貼簿 API，不中斷流程
+    }
+    // 單純「複製」這個動作不會標記為已使用，只是解鎖「前往網址」而已
+
+    copyConfirmBackdrop.hidden = true;
+    toast('已複製留言');
+
+    // 只有還是同一句時才記錄「已複製確認過」，避免確認視窗開著的期間使用者已經換了下一句
+    if (currentExample === 目前範例) {
+      已複製目前範例 = true;
+    }
+    // 複製後維持顯示原本這句，不自動重選；要換下一句需要使用者自己按「重選」
+  });
+
+  btnCloseExample.addEventListener('click', async () => {
+    await 釋放目前範例(); // 沒按過前往網址就關閉視窗，把這句還給資源池；按過的話會維持已使用
+    exampleBackdrop.hidden = true;
+    exampleLink = null;
   });
 
   // ---------- 初始化 ----------
